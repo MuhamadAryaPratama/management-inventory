@@ -1,0 +1,146 @@
+@import "@coreui/coreui/dist/css/coreui.min.css";
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--cui-tertiary-bg, #f8f9fa);
+}
+
+.wrapper {
+  width: 100%;
+  will-change: auto;
+  transition: padding 0.15s, margin-left 0.3s;
+  margin-left: 0;
+
+  @media (min-width: 992px) {
+    &.sidebar-show {
+      margin-left: 250px;
+    }
+  }
+}
+
+// Sidebar styles
+.sidebar {
+  height: 100vh;
+  position: fixed;
+  z-index: 1030;
+  transition: transform 0.3s ease-in-out;
+  width: 250px;
+
+  @media (max-width: 991px) {
+    transform: translateX(-100%);
+
+    &.c-sidebar-show {
+      transform: translateX(0);
+    }
+  }
+
+  .sidebar-brand-full {
+    font-size: 1.25rem;
+    font-weight: bold;
+    padding: 0.75rem 1rem;
+  }
+
+  .sidebar-brand-narrow {
+    display: none;
+  }
+
+  .sidebar-toggler {
+    margin-top: auto;
+  }
+}
+
+// Header styles
+.header {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 4rem;
+  z-index: 1020;
+
+  &-toggler {
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    padding: 0.5rem;
+    margin-right: 0.5rem;
+  }
+
+  &-nav {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-left: auto;
+  }
+}
+
+// Footer styles
+.footer {
+  min-height: 3rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: auto;
+}
+
+// Fix for CoreUI specific items
+.header.navbar,
+.sidebar-nav,
+.sidebar-toggler {
+  --cui-sidebar-nav-group-items-padding-x: 1rem;
+  --cui-sidebar-nav-link-padding-x: 1rem;
+}
+
+// Fix for active items in sidebar
+.nav-group-items .nav-item {
+  padding-left: 1rem;
+}
+
+// For avatar in header dropdown
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-weight: 600;
+}
+
+// Fix for dropdown items
+.dropdown-menu {
+  padding: 0.5rem 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+}
+
+.dropdown-header {
+  display: block;
+  padding: 0.5rem 1rem;
+  margin-bottom: 0;
+  font-size: 0.875rem;
+  color: #8a93a2;
+  white-space: nowrap;
+}
+
+// Added for mobile sidebar overlay
+.sidebar-overlay {
+  display: none;
+
+  @media (max-width: 991px) {
+    display: block;
+  }
+}
+
+// Fix for sidebar appearance in mobile
+@media (max-width: 991px) {
+  .c-sidebar-show {
+    transform: translateX(0) !important;
+  }
+}

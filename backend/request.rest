@@ -1,0 +1,20 @@
+GET http://localhost:5000/products
+
+###
+POST http://localhost:5000/products
+Content-Type: application/json
+
+{
+  "name": "Indomie Ayam Bawang",
+  "price": 3000,
+  "quantity": 60,
+  "category": "mie"
+}
+
+###
+Content-Type: application/json
+POST http://localhost:5000/api/categories
+{
+  "name": "mie",
+  "description": "mie adalah makanan"
+}
