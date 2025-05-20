@@ -19,6 +19,8 @@ import { cilLockLocked, cilUser } from "@coreui/icons";
 
 const Login = () => {
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,7 +49,6 @@ const Login = () => {
       setError("Format email tidak valid");
       return false;
     }
-
     return true;
   };
 
@@ -66,7 +67,7 @@ const Login = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, phone, address, password }),
         // Removed credentials: "include" since we're using localStorage for token storage
       });
 
@@ -126,6 +127,34 @@ const Login = () => {
                         autoComplete="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </CInputGroup>
+
+                    <CInputGroup className="mb-3">
+                      <CInputGroupText>
+                        <CIcon icon={cilUser} />
+                      </CInputGroupText>
+                      <CFormInput
+                        type="phone"
+                        placeholder="Phone"
+                        autoComplete="phone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                      />
+                    </CInputGroup>
+
+                    <CInputGroup className="mb-3">
+                      <CInputGroupText>
+                        <CIcon icon={cilUser} />
+                      </CInputGroupText>
+                      <CFormInput
+                        type="address"
+                        placeholder="Address"
+                        autoComplete="address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
                         required
                       />
                     </CInputGroup>

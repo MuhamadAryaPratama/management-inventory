@@ -229,34 +229,6 @@ const Profile = () => {
                     <div className="fw-bold">{user?.role || "User"}</div>
                   </div>
                 </CListGroupItem>
-
-                <CListGroupItem className="d-flex align-items-center">
-                  <div className="ms-2">
-                    <div className="small text-medium-emphasis">Status</div>
-                    <div className="fw-bold">
-                      <span
-                        className={`badge ${
-                          user?.active ? "bg-success" : "bg-danger"
-                        }`}
-                      >
-                        {user?.active ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                  </div>
-                </CListGroupItem>
-
-                <CListGroupItem className="d-flex align-items-center">
-                  <div className="ms-2">
-                    <div className="small text-medium-emphasis">
-                      Last Updated
-                    </div>
-                    <div className="fw-bold">
-                      {user?.updatedAt
-                        ? formatDate(user.updatedAt)
-                        : "Not available"}
-                    </div>
-                  </div>
-                </CListGroupItem>
               </CListGroup>
             </CCardBody>
           </CCard>

@@ -11,8 +11,8 @@ import Dashboard from "./views/Dashboard";
 import Product from "./views/products/Product";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Profile from "./pages/profile/Profile"; // Import from correct path
-import Settings from "./pages/profile/Setting"; // Fixed import path
+import Profile from "./pages/profile/Profile";
+import Settings from "./pages/profile/Setting";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 function App() {

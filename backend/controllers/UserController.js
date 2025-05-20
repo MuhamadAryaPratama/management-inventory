@@ -65,6 +65,8 @@ export const updateUser = async (req, res) => {
 
     // Update user
     user.name = req.body.name || user.name;
+    user.phone = req.body.phone || user.phone;
+    user.address = req.body.address || user.address;
     user.email = req.body.email || user.email;
     user.role = req.body.role || user.role;
 
@@ -77,6 +79,8 @@ export const updateUser = async (req, res) => {
     res.status(200).json({
       _id: updatedUser._id,
       name: updatedUser.name,
+      phone: updatedUser.phone,
+      address: updatedUser.address,
       email: updatedUser.email,
       role: updatedUser.role,
     });

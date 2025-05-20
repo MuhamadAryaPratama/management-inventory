@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 
 // Register new user
 export const register = async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, phone, address, email, password, role } = req.body;
 
   try {
     // Check if user already exists
@@ -18,6 +18,8 @@ export const register = async (req, res) => {
     // Create new user
     const user = await User.create({
       name,
+      phone,
+      address,
       email,
       password,
       role: role || "karyawan",
@@ -50,6 +52,8 @@ export const login = async (req, res) => {
       res.json({
         _id: user._id,
         name: user.name,
+        phone: user.phone,
+        address: user.address,
         email: user.email,
         role: user.role,
         token: generateToken(user._id),

@@ -241,17 +241,14 @@ const Settings = () => {
       }
 
       // Make API call to update user data
-      const response = await fetch(
-        "http://localhost:5000/api/auth/update-profile",
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updateData),
-        }
-      );
+      const response = await fetch("http://localhost:5000/api/users/{id}", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateData),
+      });
 
       const data = await response.json();
 
