@@ -21,6 +21,8 @@ import {
   CAlert,
   CPagination,
   CPaginationItem,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import {
@@ -49,17 +51,36 @@ const Product = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get("http://localhost:5000/api/products");
-      setProducts(response.data);
+      // Use the correct API endpoint as specified
+      const response = await axios.get("http://localhost:5000/api/products", {
+        // Add Authorization header if required
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+        },
+      });
 
-      // Extract unique categories for filter dropdown
-      const uniqueCategories = [
-        ...new Set(response.data.map((product) => product.category)),
-      ];
-      setCategories(uniqueCategories);
+      // Check if response is valid and has data
+      if (response.data) {
+        setProducts(response.data);
+
+        // Extract unique categories for filter dropdown
+        const uniqueCategories = [
+          ...new Set(
+            response.data.map((product) => product.category).filter(Boolean)
+          ),
+        ];
+        setCategories(uniqueCategories);
+      } else {
+        throw new Error("No data received from server");
+      }
     } catch (err) {
       console.error("Error fetching products:", err);
-      setError("Failed to load product data. Please try again later.");
+      setError(
+        `Failed to load product data: ${
+          err.response?.data?.message || err.message
+        }. Please try again later.`
+      );
+      setProducts([]); // Reset products on error
     } finally {
       setLoading(false);
     }
@@ -84,9 +105,11 @@ const Product = () => {
 
   // Filter products based on search and category
   const filteredProducts = products.filter((product) => {
+    const searchTerm = search.toLowerCase();
+    // Safely handle potentially undefined properties
     const matchesSearch =
-      product.name.toLowerCase().includes(search.toLowerCase()) ||
-      product.code.toLowerCase().includes(search.toLowerCase());
+      (product.name?.toLowerCase() || "").includes(searchTerm) ||
+      (product.code?.toLowerCase() || "").includes(searchTerm);
     const matchesCategory =
       filterCategory === "" || product.category === filterCategory;
     return matchesSearch && matchesCategory;
@@ -115,12 +138,21 @@ const Product = () => {
   const handleDeleteProduct = async (id) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
-        await axios.delete(`http://localhost:5000/products/${id}`);
+        // Update API endpoint to match the correct format
+        await axios.delete(`http://localhost:5000/api/products/${id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        });
         // Refresh products list after deletion
         fetchProducts();
       } catch (err) {
         console.error("Error deleting product:", err);
-        setError("Failed to delete product. Please try again.");
+        setError(
+          `Failed to delete product: ${
+            err.response?.data?.message || err.message
+          }. Please try again.`
+        );
       }
     }
   };
@@ -133,178 +165,202 @@ const Product = () => {
   };
 
   return (
-    <CRow>
-      <CCol xs={12}>
-        <CCard className="mb-4">
-          <CCardHeader>
-            <h5>Data Barang</h5>
-          </CCardHeader>
-          <CCardBody>
-            {/* Toolbar */}
-            <CRow className="mb-3">
-              <CCol sm={12} md={6} className="mb-2 mb-md-0">
-                <CInputGroup>
-                  <CFormInput
-                    placeholder="Search by name or code..."
-                    value={search}
-                    onChange={handleSearchChange}
-                  />
-                  <CButton type="button" color="primary" variant="outline">
-                    <CIcon icon={cilSearch} />
-                  </CButton>
-                </CInputGroup>
-              </CCol>
-              <CCol sm={12} md={3} className="mb-2 mb-md-0">
-                <CFormSelect
-                  value={filterCategory}
-                  onChange={handleCategoryChange}
+    <>
+      {/* Add breadcrumb for better navigation */}
+      <CRow>
+        <CCol>
+          <CBreadcrumb className="mb-3">
+            <CBreadcrumbItem href="/dashboard">Home</CBreadcrumbItem>
+            <CBreadcrumbItem>Manajemen Barang</CBreadcrumbItem>
+            <CBreadcrumbItem active>Data Barang</CBreadcrumbItem>
+          </CBreadcrumb>
+        </CCol>
+      </CRow>
+
+      <CRow>
+        <CCol xs={12}>
+          <CCard className="mb-4">
+            <CCardHeader>
+              <h5>Data Barang</h5>
+            </CCardHeader>
+            <CCardBody>
+              {/* Toolbar */}
+              <CRow className="mb-3">
+                <CCol sm={12} md={6} className="mb-2 mb-md-0">
+                  <CInputGroup>
+                    <CFormInput
+                      placeholder="Search by name or code..."
+                      value={search}
+                      onChange={handleSearchChange}
+                    />
+                    <CButton type="button" color="primary" variant="outline">
+                      <CIcon icon={cilSearch} />
+                    </CButton>
+                  </CInputGroup>
+                </CCol>
+                <CCol sm={12} md={3} className="mb-2 mb-md-0">
+                  <CFormSelect
+                    value={filterCategory}
+                    onChange={handleCategoryChange}
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map((category, index) => (
+                      <option key={index} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </CCol>
+                <CCol sm={12} md={3} className="d-flex justify-content-md-end">
+                  <CButtonGroup>
+                    <CButton color="primary" onClick={handleAddProduct}>
+                      <CIcon icon={cilPlus} className="me-1" /> Add
+                    </CButton>
+                    <CButton color="secondary" onClick={fetchProducts}>
+                      <CIcon icon={cilReload} />
+                    </CButton>
+                  </CButtonGroup>
+                </CCol>
+              </CRow>
+
+              {/* Error Alert */}
+              {error && (
+                <CAlert
+                  color="danger"
+                  dismissible
+                  onClose={() => setError(null)}
                 >
-                  <option value="">All Categories</option>
-                  {categories.map((category, index) => (
-                    <option key={index} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </CFormSelect>
-              </CCol>
-              <CCol sm={12} md={3} className="d-flex justify-content-md-end">
-                <CButtonGroup>
-                  <CButton color="primary" onClick={handleAddProduct}>
-                    <CIcon icon={cilPlus} className="me-1" /> Add
-                  </CButton>
-                  <CButton color="secondary" onClick={fetchProducts}>
-                    <CIcon icon={cilReload} />
-                  </CButton>
-                </CButtonGroup>
-              </CCol>
-            </CRow>
+                  {error}
+                </CAlert>
+              )}
 
-            {/* Error Alert */}
-            {error && (
-              <CAlert color="danger" dismissible onClose={() => setError(null)}>
-                {error}
-              </CAlert>
-            )}
-
-            {/* Products Table */}
-            {loading ? (
-              <div className="d-flex justify-content-center my-5">
-                <CSpinner color="primary" />
-              </div>
-            ) : (
-              <>
-                <CTable hover responsive className="mb-3">
-                  <CTableHead color="light">
-                    <CTableRow>
-                      <CTableHeaderCell scope="col">No</CTableHeaderCell>
-                      <CTableHeaderCell scope="col">Code</CTableHeaderCell>
-                      <CTableHeaderCell scope="col">Name</CTableHeaderCell>
-                      <CTableHeaderCell scope="col">Category</CTableHeaderCell>
-                      <CTableHeaderCell scope="col">Location</CTableHeaderCell>
-                      <CTableHeaderCell scope="col">Stock</CTableHeaderCell>
-                      <CTableHeaderCell scope="col">Unit</CTableHeaderCell>
-                      <CTableHeaderCell scope="col">Price</CTableHeaderCell>
-                      <CTableHeaderCell scope="col">Actions</CTableHeaderCell>
-                    </CTableRow>
-                  </CTableHead>
-                  <CTableBody>
-                    {currentItems.length > 0 ? (
-                      currentItems.map((product, index) => (
-                        <CTableRow key={product.id}>
-                          <CTableDataCell>
-                            {indexOfFirstItem + index + 1}
-                          </CTableDataCell>
-                          <CTableDataCell>{product.code}</CTableDataCell>
-                          <CTableDataCell>{product.name}</CTableDataCell>
-                          <CTableDataCell>{product.category}</CTableDataCell>
-                          <CTableDataCell>{product.location}</CTableDataCell>
-                          <CTableDataCell>
-                            <CBadge
-                              color={getStockStatusColor(product.quantity)}
-                            >
-                              {product.quantity}
-                            </CBadge>
-                          </CTableDataCell>
-                          <CTableDataCell>{product.unit}</CTableDataCell>
-                          <CTableDataCell>
-                            {new Intl.NumberFormat("id-ID", {
-                              style: "currency",
-                              currency: "IDR",
-                            }).format(product.price)}
-                          </CTableDataCell>
-                          <CTableDataCell>
-                            <CButtonGroup size="sm">
-                              <CButton
-                                color="info"
-                                variant="outline"
-                                onClick={() => handleEditProduct(product.id)}
+              {/* Products Table */}
+              {loading ? (
+                <div className="d-flex justify-content-center my-5">
+                  <CSpinner color="primary" />
+                </div>
+              ) : (
+                <>
+                  <CTable hover responsive className="mb-3">
+                    <CTableHead color="light">
+                      <CTableRow>
+                        <CTableHeaderCell scope="col">No</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Code</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Name</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">
+                          Category
+                        </CTableHeaderCell>
+                        <CTableHeaderCell scope="col">
+                          Location
+                        </CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Stock</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Unit</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Price</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Actions</CTableHeaderCell>
+                      </CTableRow>
+                    </CTableHead>
+                    <CTableBody>
+                      {currentItems.length > 0 ? (
+                        currentItems.map((product, index) => (
+                          <CTableRow key={product.id || index}>
+                            <CTableDataCell>
+                              {indexOfFirstItem + index + 1}
+                            </CTableDataCell>
+                            <CTableDataCell>{product.code}</CTableDataCell>
+                            <CTableDataCell>{product.name}</CTableDataCell>
+                            <CTableDataCell>{product.category}</CTableDataCell>
+                            <CTableDataCell>{product.location}</CTableDataCell>
+                            <CTableDataCell>
+                              <CBadge
+                                color={getStockStatusColor(product.quantity)}
                               >
-                                <CIcon icon={cilPencil} />
-                              </CButton>
-                              <CButton
-                                color="danger"
-                                variant="outline"
-                                onClick={() => handleDeleteProduct(product.id)}
-                              >
-                                <CIcon icon={cilTrash} />
-                              </CButton>
-                            </CButtonGroup>
+                                {product.quantity}
+                              </CBadge>
+                            </CTableDataCell>
+                            <CTableDataCell>{product.unit}</CTableDataCell>
+                            <CTableDataCell>
+                              {new Intl.NumberFormat("id-ID", {
+                                style: "currency",
+                                currency: "IDR",
+                              }).format(product.price)}
+                            </CTableDataCell>
+                            <CTableDataCell>
+                              <CButtonGroup size="sm">
+                                <CButton
+                                  color="info"
+                                  variant="outline"
+                                  onClick={() => handleEditProduct(product.id)}
+                                >
+                                  <CIcon icon={cilPencil} />
+                                </CButton>
+                                <CButton
+                                  color="danger"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleDeleteProduct(product.id)
+                                  }
+                                >
+                                  <CIcon icon={cilTrash} />
+                                </CButton>
+                              </CButtonGroup>
+                            </CTableDataCell>
+                          </CTableRow>
+                        ))
+                      ) : (
+                        <CTableRow>
+                          <CTableDataCell colSpan="9" className="text-center">
+                            No products found
                           </CTableDataCell>
                         </CTableRow>
-                      ))
-                    ) : (
-                      <CTableRow>
-                        <CTableDataCell colSpan="9" className="text-center">
-                          No products found
-                        </CTableDataCell>
-                      </CTableRow>
-                    )}
-                  </CTableBody>
-                </CTable>
+                      )}
+                    </CTableBody>
+                  </CTable>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <CPagination align="end" aria-label="Page navigation">
-                    <CPaginationItem
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                    >
-                      Previous
-                    </CPaginationItem>
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <CPagination align="end" aria-label="Page navigation">
+                      <CPaginationItem
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                      >
+                        Previous
+                      </CPaginationItem>
 
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (page) => (
-                        <CPaginationItem
-                          key={page}
-                          active={page === currentPage}
-                          onClick={() => setCurrentPage(page)}
-                        >
-                          {page}
-                        </CPaginationItem>
-                      )
-                    )}
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                        (page) => (
+                          <CPaginationItem
+                            key={page}
+                            active={page === currentPage}
+                            onClick={() => setCurrentPage(page)}
+                          >
+                            {page}
+                          </CPaginationItem>
+                        )
+                      )}
 
-                    <CPaginationItem
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                    >
-                      Next
-                    </CPaginationItem>
-                  </CPagination>
-                )}
+                      <CPaginationItem
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                      >
+                        Next
+                      </CPaginationItem>
+                    </CPagination>
+                  )}
 
-                {/* Summary */}
-                <div className="text-medium-emphasis small">
-                  Showing {indexOfFirstItem + 1} to{" "}
-                  {Math.min(indexOfLastItem, filteredProducts.length)} of{" "}
-                  {filteredProducts.length} entries
-                </div>
-              </>
-            )}
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
+                  {/* Summary */}
+                  <div className="text-medium-emphasis small">
+                    Showing{" "}
+                    {filteredProducts.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
+                    {Math.min(indexOfLastItem, filteredProducts.length)} of{" "}
+                    {filteredProducts.length} entries
+                  </div>
+                </>
+              )}
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+    </>
   );
 };
 

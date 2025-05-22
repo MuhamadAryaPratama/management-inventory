@@ -95,7 +95,7 @@ const Profile = () => {
         month: "long",
         day: "numeric",
       });
-    } catch (e) {
+    } catch {
       return dateString;
     }
   };
@@ -128,11 +128,6 @@ const Profile = () => {
       <CRow>
         <CCol md={4}>
           <CCard className="mb-4">
-            <CCardImage
-              orientation="top"
-              src="/api/placeholder/450/250"
-              alt="User profile image"
-            />
             <CCardBody className="text-center">
               <CCardTitle className="mb-0 fs-4">
                 {user?.name || "User"}

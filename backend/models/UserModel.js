@@ -33,6 +33,10 @@ const User = new mongoose.Schema({
     enum: ["pemilik", "karyawan"],
     default: "karyawan",
   },
+  refreshToken: {
+    type: String,
+    default: null,
+  },
   lastLogin: {
     type: Date,
   },

@@ -23,18 +23,21 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected routes within Layout */}
+        {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            {/* Product Management Routes */}
             <Route path="/product-management/items" element={<Product />} />
-            {/* Fixed Profile and Settings routes */}
+
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
-            {/* Add other routes here */}
           </Route>
         </Route>
+
+        {/* Fallback route */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
   );

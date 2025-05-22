@@ -7,6 +7,7 @@ import {
   CDropdownToggle,
   CAvatar,
 } from "@coreui/react";
+import { setTokenWithExpiry } from "../utils/SessionTimeout";
 
 const AppHeaderDropdown = () => {
   const [user, setUser] = useState(null);
@@ -29,20 +30,68 @@ const AppHeaderDropdown = () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        credentials: "include", // Include cookies for refresh token
       });
 
+      if (response.status === 401) {
+        // Token expired, try to refresh it
+        const refreshResponse = await fetch(
+          "http://localhost:5000/api/auth/refresh-token",
+          {
+            method: "POST",
+            credentials: "include", // Include cookies for refresh token
+          }
+        );
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          // Update token in localStorage
+          localStorage.setItem("userToken", refreshData.token);
+          setTokenWithExpiry(refreshData.token);
+
+          // Dispatch an event to notify other components about token refresh
+          window.dispatchEvent(new Event("userLoggedIn"));
+
+          // Retry the original request with the new token
+          const retryResponse = await fetch(
+            "http://localhost:5000/api/auth/me",
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${refreshData.token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (retryResponse.ok) {
+            const userData = await retryResponse.json();
+            setUser(userData);
+            localStorage.setItem("userData", JSON.stringify(userData));
+            setLoading(false);
+            return;
+          }
+        }
+
+        // If refresh failed or retry failed, log the user out
+        handleLogout();
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error("Failed to fetch user data");
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to fetch user data: ${response.status} ${errorText}`
+        );
       }
 
       const userData = await response.json();
       setUser(userData);
 
-      // Update localStorage with fresh data
       localStorage.setItem("userData", JSON.stringify(userData));
+      setTokenWithExpiry(token);
     } catch (error) {
-      console.error("Error fetching user data:", error);
-      // If API call fails, try to use cached data from localStorage
+      console.error("Error fetching user data:", error.message || error);
       const cachedUserData = localStorage.getItem("userData");
       if (cachedUserData) {
         try {
@@ -97,13 +146,14 @@ const AppHeaderDropdown = () => {
       const token = localStorage.getItem("userToken");
 
       if (token) {
-        // Optional: Call logout endpoint if you have one
+        // Call logout endpoint
         await fetch("http://localhost:5000/api/auth/logout", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
+          credentials: "include", // Include cookies for refresh token
         });
       }
     } catch (error) {
@@ -112,6 +162,7 @@ const AppHeaderDropdown = () => {
       // Clear user data from localStorage
       localStorage.removeItem("userToken");
       localStorage.removeItem("userData");
+      localStorage.removeItem("tokenExpiry");
 
       // Update component state
       setUser(null);

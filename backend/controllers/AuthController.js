@@ -2,6 +2,25 @@ import jwt from "jsonwebtoken";
 import User from "../models/UserModel.js";
 import bcrypt from "bcryptjs";
 
+// Ensure we have fallback values if environment variables are not set
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_fallback";
+const REFRESH_TOKEN_SECRET =
+  process.env.REFRESH_TOKEN_SECRET || "your_refresh_token_secret_fallback";
+
+// Generate access token - short lived (3 minutes)
+export const generateAccessToken = (id) => {
+  return jwt.sign({ id }, JWT_SECRET, {
+    expiresIn: "3m",
+  });
+};
+
+// Generate refresh token - longer lived (7 days)
+export const generateRefreshToken = (id) => {
+  return jwt.sign({ id }, REFRESH_TOKEN_SECRET, {
+    expiresIn: "7d",
+  });
+};
+
 // Register new user
 export const register = async (req, res) => {
   const { name, phone, address, email, password, role } = req.body;
@@ -11,8 +30,7 @@ export const register = async (req, res) => {
     const userExists = await User.findOne({ email });
 
     if (userExists) {
-      res.status(400);
-      throw new Error("User already exists");
+      return res.status(400).json({ message: "User already exists" });
     }
 
     // Create new user
@@ -27,70 +45,166 @@ export const register = async (req, res) => {
 
     if (user) {
       // Return only a success message instead of user details and token
-      res.status(201).json({
+      return res.status(201).json({
         message: "Akun berhasil dibuat",
       });
     } else {
-      res.status(400);
-      throw new Error("Invalid user data");
+      return res.status(400).json({ message: "Invalid user data" });
     }
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error("Register error:", error);
+    return res.status(400).json({ message: error.message });
   }
 };
 
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Please provide email and password" });
+    }
+
     const user = await User.findOne({ email }).select("+password");
 
-    if (user && (await user.matchPassword(password))) {
-      // Update last login
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const isMatch = await user.matchPassword(password);
+    if (isMatch) {
+      // Generate tokens
+      const accessToken = generateAccessToken(user._id);
+      const refreshToken = generateRefreshToken(user._id);
+
+      // Save refresh token in the database
+      user.refreshToken = refreshToken;
       user.lastLogin = Date.now();
       await user.save();
 
-      res.json({
+      // Set refresh token in HTTP-only cookie
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        secure: process.env.NODE_ENV === "production", // Use secure in production
+        sameSite: "strict",
+        path: "/api/auth/refresh-token",
+      });
+
+      return res.json({
         _id: user._id,
         name: user.name,
         phone: user.phone,
         address: user.address,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id),
+        token: accessToken,
       });
     } else {
-      res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Login error:", error);
+    return res.status(500).json({ message: "Server error during login" });
   }
 };
 
 export const logout = async (req, res) => {
   try {
-    // In a JWT-based auth system, the server doesn't maintain session state,
-    // so we simply return a success message to the client
-    // The client should remove the token from local storage or cookies
-    res.status(200).json({
+    // Find user by ID
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Clear refresh token in database
+    user.refreshToken = null;
+    await user.save();
+
+    // Clear cookie
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      path: "/api/auth/refresh-token",
+    });
+
+    return res.status(200).json({
       success: true,
       message: "Berhasil logout",
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Logout error:", error);
+    return res.status(500).json({ message: "Server error during logout" });
+  }
+};
+
+export const refreshToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token not found" });
+    }
+
+    try {
+      // Verify refresh token
+      const decoded = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
+
+      // Check if user exists and token matches
+      const user = await User.findById(decoded.id);
+
+      if (!user || user.refreshToken !== refreshToken) {
+        return res.status(403).json({ message: "Invalid refresh token" });
+      }
+
+      // Generate new access token
+      const accessToken = generateAccessToken(user._id);
+
+      return res.json({
+        token: accessToken,
+      });
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        return res
+          .status(403)
+          .json({ message: "Refresh token expired, please login again" });
+      }
+
+      return res.status(403).json({ message: "Invalid refresh token" });
+    }
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error during token refresh" });
   }
 };
 
 export const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
-    res.status(200).json(user);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+    const user = await User.findById(req.user.id).select(
+      "-password -refreshToken"
+    );
 
-export const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: "3m",
-  });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Generate a fresh access token to ensure it's valid for another 3 minutes
+    const accessToken = generateAccessToken(user._id);
+
+    // Return user data with a fresh token
+    return res.status(200).json({
+      ...user.toJSON(),
+      token: accessToken,
+    });
+  } catch (error) {
+    console.error("GetMe error:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error retrieving user data" });
+  }
 };

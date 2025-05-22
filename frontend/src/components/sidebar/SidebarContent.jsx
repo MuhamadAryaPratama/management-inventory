@@ -1,52 +1,49 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
-import { CNavGroup, CNavItem, CNavTitle } from "@coreui/react";
-import { CSidebarNav, CNavLink } from "@coreui/react";
+import { useLocation, NavLink } from "react-router-dom";
+import { CSidebarNav, CNavItem, CNavGroup, CNavTitle } from "@coreui/react";
+import CIcon from "@coreui/icons-react";
+import Sidebar from "./Sidebar";
 import SimpleBar from "simplebar-react";
-import "simplebar-react/dist/simplebar.min.css";
-import navigation from "./Sidebar";
 
 const SidebarContent = () => {
-  // Function to create nav items recursively
-  const renderNavItems = (items) => {
+  const location = useLocation();
+
+  const isActive = (path) => location.pathname === path;
+
+  const renderSidebarItems = (items) => {
     return items.map((item, index) => {
-      // For nav group
-      if (item.component === CNavGroup) {
+      if (item.component === CNavTitle) {
+        return <CNavTitle key={index}>{item.name}</CNavTitle>;
+      } else if (item.component === CNavGroup) {
         return (
           <CNavGroup
             key={index}
             toggler={
               <>
-                {item.icon && item.icon}
+                {item.icon && <span className="nav-icon">{item.icon}</span>}
                 {item.name}
               </>
             }
+            visible={item.items.some(
+              (subItem) =>
+                isActive(subItem.to) || location.pathname.startsWith(subItem.to)
+            )}
           >
-            {item.items && renderNavItems(item.items)}
+            {renderSidebarItems(item.items)}
           </CNavGroup>
         );
-      }
-      // For nav title
-      else if (item.component === CNavTitle) {
-        return <CNavTitle key={index}>{item.name}</CNavTitle>;
-      }
-      // For nav item
-      else if (item.component === CNavItem) {
+      } else if (item.component === CNavItem) {
         return (
-          <CNavItem key={index}>
-            <CNavLink
-              to={item.to}
-              component={NavLink}
-              end={item.end ? "true" : undefined}
-            >
-              {item.icon && item.icon}
+          <CNavItem key={index} active={isActive(item.to)}>
+            <NavLink to={item.to} className="nav-link">
+              {item.icon && <span className="nav-icon">{item.icon}</span>}
               {item.name}
               {item.badge && (
-                <span className={`ms-auto badge bg-${item.badge.color}`}>
+                <span className={`badge ms-auto badge-${item.badge.color}`}>
                   {item.badge.text}
                 </span>
               )}
-            </CNavLink>
+            </NavLink>
           </CNavItem>
         );
       }
@@ -56,7 +53,7 @@ const SidebarContent = () => {
 
   return (
     <SimpleBar>
-      <CSidebarNav>{renderNavItems(navigation)}</CSidebarNav>
+      <CSidebarNav>{renderSidebarItems(Sidebar)}</CSidebarNav>
     </SimpleBar>
   );
 };

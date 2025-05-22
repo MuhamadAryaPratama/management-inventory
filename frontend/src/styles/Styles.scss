@@ -26,6 +26,8 @@ body {
   z-index: 1030;
   transition: transform 0.3s ease-in-out;
   width: 250px;
+  display: flex;
+  flex-direction: column;
 
   @media (max-width: 991px) {
     transform: translateX(-100%);
@@ -39,6 +41,9 @@ body {
     font-size: 1.25rem;
     font-weight: bold;
     padding: 0.75rem 1rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
   }
 
   .sidebar-brand-narrow {
@@ -47,6 +52,19 @@ body {
 
   .sidebar-toggler {
     margin-top: auto;
+  }
+
+  .simplebar-content-wrapper {
+    overflow: auto;
+  }
+
+  .simplebar-track.simplebar-vertical {
+    width: 8px;
+  }
+
+  .nav-group-items {
+    max-height: 500px;
+    overflow-y: auto;
   }
 }
 
@@ -143,4 +161,21 @@ body {
   .c-sidebar-show {
     transform: translateX(0) !important;
   }
+}
+
+// Add compact menu styles
+.c-sidebar-nav {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.c-sidebar-nav-item,
+.c-sidebar-nav-title {
+  margin-bottom: 0.25rem;
+}
+
+// Limit height of expanded nav groups to enable scrolling within groups
+.c-sidebar-nav-group.show .c-sidebar-nav-group-items {
+  max-height: 300px;
+  overflow-y: auto;
 }

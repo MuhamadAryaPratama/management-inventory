@@ -1,7 +1,5 @@
-import React, { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
 import {
-  CButton,
   CCard,
   CCardBody,
   CCardGroup,
@@ -12,153 +10,168 @@ import {
   CInputGroup,
   CInputGroupText,
   CRow,
+  CButton,
   CAlert,
+  CSpinner,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
-import { cilLockLocked, cilUser } from "@coreui/icons";
+import { cilLockLocked, cilUser, cilPhone, cilHome } from "@coreui/icons";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import { setTokenWithExpiry } from "../components/utils/SessionTimeout";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [error, setError] = useState("");
+  const [notification, setNotification] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check for success message from registration
-  React.useEffect(() => {
+  // Check for messages passed through navigation state
+  useEffect(() => {
     if (location.state?.message) {
-      setSuccessMessage(location.state.message);
-      // Clean up location state
+      setNotification({
+        message: location.state.message,
+        type: location.state.alertType || "info",
+      });
+
+      // Clear the state to prevent showing the message again on page refresh
       window.history.replaceState({}, document.title);
     }
   }, [location]);
 
-  const validateForm = () => {
-    if (!email || !password) {
-      setError("Email dan password harus diisi");
-      return false;
+  // Check if already logged in
+  useEffect(() => {
+    const token = localStorage.getItem("userToken");
+    if (token) {
+      navigate("/dashboard");
     }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError("Format email tidak valid");
-      return false;
-    }
-    return true;
-  };
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccessMessage("");
-
-    if (!validateForm()) return;
-
     setLoading(true);
+    setError("");
 
     try {
+      // Basic validation
+      if (!email.trim() || !password.trim()) {
+        throw new Error("Email and password are required");
+      }
+
+      // Call login API - only send email and password
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, phone, address, password }),
-        // Removed credentials: "include" since we're using localStorage for token storage
+        body: JSON.stringify({ email, password }),
+        credentials: "include", // Important: Include cookies for refresh token
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Login gagal");
+        throw new Error(data.message || "Login failed");
       }
 
-      // Save user data and token to localStorage
-      localStorage.setItem("userToken", data.token);
-      if (data.user) {
-        localStorage.setItem("userData", JSON.stringify(data.user));
-      }
+      // Store token with expiry time
+      setTokenWithExpiry(data.token);
+
+      // Store user data
+      localStorage.setItem(
+        "userData",
+        JSON.stringify({
+          _id: data._id,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          phone: data.phone,
+          address: data.address,
+        })
+      );
+
+      // Dispatch event to notify other components
+      window.dispatchEvent(new Event("userLoggedIn"));
 
       // Redirect to dashboard
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message || "Terjadi kesalahan saat login");
       console.error("Login error:", err);
+      setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
+    <div className="bg-light min-vh-100 d-flex flex-row align-items-center">
       <CContainer>
         <CRow className="justify-content-center">
           <CCol md={8}>
+            {notification && (
+              <CAlert color={notification.type} className="mb-4">
+                {notification.message}
+              </CAlert>
+            )}
+
             <CCardGroup>
               <CCard className="p-4">
                 <CCardBody>
+                  <h1>Login</h1>
+                  <p className="text-medium-emphasis">
+                    Sign In to your account
+                  </p>
+
+                  {error && (
+                    <CAlert color="danger" className="mb-3">
+                      {error}
+                    </CAlert>
+                  )}
+
                   <CForm onSubmit={handleSubmit}>
-                    <h1>Login</h1>
-                    <p className="text-body-secondary">Masuk ke akun Anda</p>
-
-                    {error && (
-                      <CAlert color="danger" className="mt-3">
-                        {error}
-                      </CAlert>
-                    )}
-
-                    {successMessage && (
-                      <CAlert color="success" className="mt-3">
-                        {successMessage}
-                      </CAlert>
-                    )}
-
                     <CInputGroup className="mb-3">
                       <CInputGroupText>
                         <CIcon icon={cilUser} />
                       </CInputGroupText>
                       <CFormInput
-                        type="email"
                         placeholder="Email"
                         autoComplete="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        disabled={loading}
                         required
                       />
                     </CInputGroup>
-
                     <CInputGroup className="mb-3">
                       <CInputGroupText>
-                        <CIcon icon={cilUser} />
+                        <CIcon icon={cilPhone} />
                       </CInputGroupText>
                       <CFormInput
-                        type="phone"
                         placeholder="Phone"
                         autoComplete="phone"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
+                        disabled={loading}
                         required
                       />
                     </CInputGroup>
-
                     <CInputGroup className="mb-3">
                       <CInputGroupText>
-                        <CIcon icon={cilUser} />
+                        <CIcon icon={cilHome} />
                       </CInputGroupText>
                       <CFormInput
-                        type="address"
                         placeholder="Address"
                         autoComplete="address"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
+                        disabled={loading}
                         required
                       />
                     </CInputGroup>
-
                     <CInputGroup className="mb-4">
                       <CInputGroupText>
                         <CIcon icon={cilLockLocked} />
@@ -169,10 +182,10 @@ const Login = () => {
                         autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        disabled={loading}
                         required
                       />
                     </CInputGroup>
-
                     <CRow>
                       <CCol xs={6}>
                         <CButton
@@ -181,12 +194,18 @@ const Login = () => {
                           className="px-4"
                           disabled={loading}
                         >
-                          {loading ? "Memproses..." : "Login"}
+                          {loading ? (
+                            <>
+                              <CSpinner size="sm" className="me-2" /> Login...
+                            </>
+                          ) : (
+                            "Login"
+                          )}
                         </CButton>
                       </CCol>
-                      <CCol xs={6} className="text-end">
+                      <CCol xs={6} className="text-right">
                         <CButton color="link" className="px-0">
-                          Lupa password?
+                          Forgot password?
                         </CButton>
                       </CCol>
                     </CRow>
@@ -199,19 +218,19 @@ const Login = () => {
               >
                 <CCardBody className="text-center">
                   <div>
-                    <h2>Daftar</h2>
+                    <h2>Sign up</h2>
                     <p>
-                      Belum memiliki akun? Daftar sekarang untuk mengakses
-                      sistem manajemen bisnis Anda.
+                      Don't have an account yet? Register now to get access to
+                      the inventory management system.
                     </p>
                     <Link to="/register">
                       <CButton
-                        color="primary"
+                        color="light"
                         className="mt-3"
                         active
                         tabIndex={-1}
                       >
-                        Daftar Sekarang!
+                        Register Now!
                       </CButton>
                     </Link>
                   </div>
