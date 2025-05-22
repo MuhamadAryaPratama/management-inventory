@@ -9,6 +9,8 @@ import "./styles/Styles.scss";
 import Layout from "./layout/Layout";
 import Dashboard from "./views/Dashboard";
 import Product from "./views/products/Product";
+import Category from "./views/category/Category";
+import Supplier from "./views/supplier/Supplier";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/profile/Profile";
@@ -30,6 +32,12 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             {/* Product Management Routes */}
             <Route path="/product-management/items" element={<Product />} />
+            <Route
+              path="/product-management/categories"
+              element={<Category />}
+            />
+            {/* Supplier Management Routes */}
+            <Route path="/suplier/suppliers" element={<Supplier />} />
 
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />

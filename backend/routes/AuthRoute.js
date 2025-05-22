@@ -8,12 +8,8 @@ import {
 } from "../controllers/AuthController.js";
 import { protect } from "../middleware/auth.js";
 import asyncHandler from "express-async-handler";
-import cookieParser from "cookie-parser";
 
 const router = express.Router();
-
-// Apply cookie parser middleware
-router.use(cookieParser());
 
 // Auth routes
 router.post("/register", asyncHandler(register));

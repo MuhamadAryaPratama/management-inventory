@@ -40,12 +40,12 @@ const Product = new mongoose.Schema({
   },
   createdBy: {
     type: mongoose.Schema.ObjectId,
-    ref: "Users",
+    ref: "User",
     required: true,
   },
   updatedBy: {
     type: mongoose.Schema.ObjectId,
-    ref: "Users",
+    ref: "User",
   },
   createdAt: {
     type: Date,

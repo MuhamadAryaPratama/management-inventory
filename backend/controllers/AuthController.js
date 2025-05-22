@@ -7,10 +7,10 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_fallback";
 const REFRESH_TOKEN_SECRET =
   process.env.REFRESH_TOKEN_SECRET || "your_refresh_token_secret_fallback";
 
-// Generate access token - short lived (3 minutes)
+// Generate access token - short lived (15 minutes - more reasonable than 3 minutes)
 export const generateAccessToken = (id) => {
   return jwt.sign({ id }, JWT_SECRET, {
-    expiresIn: "3m",
+    expiresIn: "15m",
   });
 };
 
@@ -44,7 +44,6 @@ export const register = async (req, res) => {
     });
 
     if (user) {
-      // Return only a success message instead of user details and token
       return res.status(201).json({
         message: "Akun berhasil dibuat",
       });
@@ -88,18 +87,22 @@ export const login = async (req, res) => {
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        secure: process.env.NODE_ENV === "production", // Use secure in production
+        secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        path: "/api/auth/refresh-token",
+        path: "/",
       });
 
       return res.json({
-        _id: user._id,
-        name: user.name,
-        phone: user.phone,
-        address: user.address,
-        email: user.email,
-        role: user.role,
+        success: true,
+        message: "Login successful",
+        // user: {
+        //   _id: user._id,
+        //   name: user.name,
+        //   phone: user.phone,
+        //   address: user.address,
+        //   email: user.email,
+        //   role: user.role,
+        // },
         token: accessToken,
       });
     } else {
@@ -128,7 +131,8 @@ export const logout = async (req, res) => {
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      path: "/api/auth/refresh-token",
+      sameSite: "strict",
+      path: "/",
     });
 
     return res.status(200).json({
@@ -164,7 +168,16 @@ export const refreshToken = async (req, res) => {
       const accessToken = generateAccessToken(user._id);
 
       return res.json({
+        success: true,
         token: accessToken,
+        user: {
+          _id: user._id,
+          name: user.name,
+          phone: user.phone,
+          address: user.address,
+          email: user.email,
+          role: user.role,
+        },
       });
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
@@ -193,13 +206,9 @@ export const getMe = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Generate a fresh access token to ensure it's valid for another 3 minutes
-    const accessToken = generateAccessToken(user._id);
-
-    // Return user data with a fresh token
     return res.status(200).json({
-      ...user.toJSON(),
-      token: accessToken,
+      success: true,
+      user: user.toJSON(),
     });
   } catch (error) {
     console.error("GetMe error:", error);

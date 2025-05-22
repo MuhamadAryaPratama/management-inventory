@@ -52,34 +52,22 @@ const Sidebar = [
       },
       {
         component: CNavItem,
-        name: "Tambah Barang",
-        to: "/product-management/add",
-        icon: <CIcon icon={cilPlus} customClassName="nav-icon" />,
-      },
-      {
-        component: CNavItem,
         name: "Kategori Barang",
         to: "/product-management/categories",
         icon: <CIcon icon={cilTags} customClassName="nav-icon" />,
-      },
-      {
-        component: CNavItem,
-        name: "Lokasi Penyimpanan",
-        to: "/product-management/locations",
-        icon: <CIcon icon={cilHome} customClassName="nav-icon" />,
       },
     ],
   },
   {
     component: CNavGroup,
     name: "Supplier",
-    to: "/settings",
+    to: "/supplier",
     icon: <CIcon icon={cilDrop} customClassName="nav-icon" />,
     items: [
       {
         component: CNavItem,
         name: "Data Supplier",
-        to: "/settings/suppliers",
+        to: "/suplier/suppliers",
         icon: <CIcon icon={cilFactory} customClassName="nav-icon" />,
       },
     ],

@@ -2,9 +2,10 @@ import express from "express";
 import morgan from "morgan";
 import errorHandler from "errorhandler";
 import cors from "cors";
-import fileUpload from "express-fileupload"; // Import express-fileupload
+import cookieParser from "cookie-parser"; // Add this import
+import fileUpload from "express-fileupload";
 import path from "path";
-import { fileURLToPath } from "url"; // Import untuk mendapatkan __dirname di ESM
+import { fileURLToPath } from "url";
 
 // Mendapatkan __dirname di ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -12,7 +13,7 @@ const __dirname = path.dirname(__filename);
 
 // Route files
 import productRoutes from "./routes/ProductRoute.js";
-import authRoutes from "./routes/AuthRoute.js";
+import authRoutes from "./routes/AuthRoute.js"; // Make sure this matches your filename
 import transactionRoutes from "./routes/TransactionRoute.js";
 import eoqRoutes from "./routes/EoqRoute.js";
 import ropRoutes from "./routes/RopRoute.js";
@@ -26,13 +27,16 @@ const app = express();
 // Body parser
 app.use(express.json());
 
+// Cookie parser - Add this BEFORE routes
+app.use(cookieParser());
+
 // Setup express-fileupload
 app.use(
   fileUpload({
-    limits: { fileSize: 5 * 1024 * 1024 }, // Batas ukuran file 5MB
-    createParentPath: true, // Membuat direktori jika belum ada
-    useTempFiles: true, // Menggunakan file temporary untuk performa yang lebih baik
-    tempFileDir: "/tmp/", // Direktori untuk file temporary
+    limits: { fileSize: 5 * 1024 * 1024 },
+    createParentPath: true,
+    useTempFiles: true,
+    tempFileDir: "/tmp/",
   })
 );
 
@@ -44,11 +48,13 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// Enable CORS
+// Enable CORS - Updated to handle cookies
 app.use(
   cors({
-    origin: "http://localhost:5173", // Your frontend URL
-    credentials: true, // Since we're using localStorage for token storage
+    origin: "http://localhost:5173",
+    credentials: true, // Important for cookies
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
