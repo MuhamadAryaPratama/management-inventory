@@ -34,6 +34,7 @@ import {
 } from "@coreui/icons";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 
 const Product = () => {
   const [products, setProducts] = useState([]);
@@ -42,9 +43,34 @@ const Product = () => {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const navigate = useNavigate();
+
+  // Fetch categories from API
+  const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    try {
+      const response = await axios.get("http://localhost:5000/api/categories", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+        },
+      });
+
+      if (response.data) {
+        setCategories(response.data);
+      } else {
+        throw new Error("No categories data received from server");
+      }
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+      // Don't show error for categories as it's not critical for the main functionality
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   // Fetch products from API
   const fetchProducts = async () => {
@@ -62,14 +88,6 @@ const Product = () => {
       // Check if response is valid and has data
       if (response.data) {
         setProducts(response.data);
-
-        // Extract unique categories for filter dropdown
-        const uniqueCategories = [
-          ...new Set(
-            response.data.map((product) => product.category).filter(Boolean)
-          ),
-        ];
-        setCategories(uniqueCategories);
       } else {
         throw new Error("No data received from server");
       }
@@ -86,9 +104,10 @@ const Product = () => {
     }
   };
 
-  // Load products on component mount
+  // Load products and categories on component mount
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   // Handle search input change
@@ -134,27 +153,78 @@ const Product = () => {
     navigate(`/product-management/edit/${id}`);
   };
 
-  // Handle product deletion
-  const handleDeleteProduct = async (id) => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      try {
-        // Update API endpoint to match the correct format
+  // Handle product deletion with SweetAlert
+  const handleDeleteProduct = async (id, productName) => {
+    try {
+      const result = await Swal.fire({
+        title: "Are you sure?",
+        text: `You are about to delete "${productName}". This action cannot be undone!`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete it!",
+        cancelButtonText: "Cancel",
+        reverseButtons: true,
+      });
+
+      if (result.isConfirmed) {
+        // Show loading
+        Swal.fire({
+          title: "Deleting...",
+          text: "Please wait while we delete the product",
+          allowOutsideClick: false,
+          showConfirmButton: false,
+          willOpen: () => {
+            Swal.showLoading();
+          },
+        });
+
+        // Delete product using the correct endpoint
         await axios.delete(`http://localhost:5000/api/products/${id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("userToken")}`,
           },
         });
+
+        // Show success message
+        await Swal.fire({
+          title: "Deleted!",
+          text: "The product has been deleted successfully.",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+
         // Refresh products list after deletion
         fetchProducts();
-      } catch (err) {
-        console.error("Error deleting product:", err);
-        setError(
-          `Failed to delete product: ${
-            err.response?.data?.message || err.message
-          }. Please try again.`
-        );
       }
+    } catch (err) {
+      console.error("Error deleting product:", err);
+
+      // Show error message with SweetAlert
+      await Swal.fire({
+        title: "Error!",
+        text: `Failed to delete product: ${
+          err.response?.data?.message || err.message
+        }. Please try again.`,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+
+      // Also set error state for additional error display
+      setError(
+        `Failed to delete product: ${
+          err.response?.data?.message || err.message
+        }. Please try again.`
+      );
     }
+  };
+
+  // Refresh both products and categories
+  const handleRefresh = () => {
+    fetchProducts();
+    fetchCategories();
   };
 
   // Get stock status badge color
@@ -162,6 +232,20 @@ const Product = () => {
     if (quantity <= 0) return "danger";
     if (quantity < 10) return "warning";
     return "success";
+  };
+
+  // Get category name by ID (if categories API returns objects with id and name)
+  const getCategoryName = (categoryId) => {
+    if (Array.isArray(categories) && categories.length > 0) {
+      // If categories is an array of objects with id and name properties
+      if (typeof categories[0] === "object" && categories[0].name) {
+        const category = categories.find((cat) => cat.id === categoryId);
+        return category ? category.name : categoryId;
+      }
+      // If categories is an array of strings
+      return categoryId;
+    }
+    return categoryId;
   };
 
   return (
@@ -202,13 +286,33 @@ const Product = () => {
                   <CFormSelect
                     value={filterCategory}
                     onChange={handleCategoryChange}
+                    disabled={categoriesLoading}
                   >
-                    <option value="">All Categories</option>
-                    {categories.map((category, index) => (
-                      <option key={index} value={category}>
-                        {category}
-                      </option>
-                    ))}
+                    <option value="">
+                      {categoriesLoading
+                        ? "Loading categories..."
+                        : "All Categories"}
+                    </option>
+                    {categories.map((category, index) => {
+                      // Handle both array of strings and array of objects
+                      const categoryValue =
+                        typeof category === "object"
+                          ? category.id || category.name
+                          : category;
+                      const categoryLabel =
+                        typeof category === "object"
+                          ? category.name || category.id
+                          : category;
+
+                      return (
+                        <option
+                          key={category.id || index}
+                          value={categoryValue}
+                        >
+                          {categoryLabel}
+                        </option>
+                      );
+                    })}
                   </CFormSelect>
                 </CCol>
                 <CCol sm={12} md={3} className="d-flex justify-content-md-end">
@@ -216,7 +320,7 @@ const Product = () => {
                     <CButton color="primary" onClick={handleAddProduct}>
                       <CIcon icon={cilPlus} className="me-1" /> Add
                     </CButton>
-                    <CButton color="secondary" onClick={fetchProducts}>
+                    <CButton color="secondary" onClick={handleRefresh}>
                       <CIcon icon={cilReload} />
                     </CButton>
                   </CButtonGroup>
@@ -268,7 +372,9 @@ const Product = () => {
                             </CTableDataCell>
                             <CTableDataCell>{product.code}</CTableDataCell>
                             <CTableDataCell>{product.name}</CTableDataCell>
-                            <CTableDataCell>{product.category}</CTableDataCell>
+                            <CTableDataCell>
+                              {getCategoryName(product.category)}
+                            </CTableDataCell>
                             <CTableDataCell>{product.location}</CTableDataCell>
                             <CTableDataCell>
                               <CBadge
@@ -297,7 +403,7 @@ const Product = () => {
                                   color="danger"
                                   variant="outline"
                                   onClick={() =>
-                                    handleDeleteProduct(product.id)
+                                    handleDeleteProduct(product._id)
                                   }
                                 >
                                   <CIcon icon={cilTrash} />
