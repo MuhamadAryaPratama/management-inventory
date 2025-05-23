@@ -65,7 +65,6 @@ const Product = () => {
       }
     } catch (err) {
       console.error("Error fetching categories:", err);
-      // Don't show error for categories as it's not critical for the main functionality
       setCategories([]);
     } finally {
       setCategoriesLoading(false);
@@ -77,15 +76,12 @@ const Product = () => {
     setLoading(true);
     setError(null);
     try {
-      // Use the correct API endpoint as specified
       const response = await axios.get("http://localhost:5000/api/products", {
-        // Add Authorization header if required
         headers: {
           Authorization: `Bearer ${localStorage.getItem("userToken")}`,
         },
       });
 
-      // Check if response is valid and has data
       if (response.data) {
         setProducts(response.data);
       } else {
@@ -98,43 +94,38 @@ const Product = () => {
           err.response?.data?.message || err.message
         }. Please try again later.`
       );
-      setProducts([]); // Reset products on error
+      setProducts([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load products and categories on component mount
   useEffect(() => {
     fetchProducts();
     fetchCategories();
   }, []);
 
-  // Handle search input change
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
-    setCurrentPage(1); // Reset to first page when searching
+    setCurrentPage(1);
   };
 
-  // Handle category filter change
   const handleCategoryChange = (e) => {
     setFilterCategory(e.target.value);
-    setCurrentPage(1); // Reset to first page when filtering
+    setCurrentPage(1);
   };
 
-  // Filter products based on search and category
   const filteredProducts = products.filter((product) => {
     const searchTerm = search.toLowerCase();
-    // Safely handle potentially undefined properties
-    const matchesSearch =
-      (product.name?.toLowerCase() || "").includes(searchTerm) ||
-      (product.code?.toLowerCase() || "").includes(searchTerm);
+    const matchesSearch = (product.name?.toLowerCase() || "").includes(
+      searchTerm
+    );
     const matchesCategory =
-      filterCategory === "" || product.category === filterCategory;
+      filterCategory === "" ||
+      (product.category && product.category._id === filterCategory);
     return matchesSearch && matchesCategory;
   });
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredProducts.slice(
@@ -143,17 +134,14 @@ const Product = () => {
   );
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
-  // Navigate to add product page
   const handleAddProduct = () => {
     navigate("/product-management/add");
   };
 
-  // Navigate to edit product page
   const handleEditProduct = (id) => {
     navigate(`/product-management/edit/${id}`);
   };
 
-  // Handle product deletion with SweetAlert
   const handleDeleteProduct = async (id, productName) => {
     try {
       const result = await Swal.fire({
@@ -169,7 +157,6 @@ const Product = () => {
       });
 
       if (result.isConfirmed) {
-        // Show loading
         Swal.fire({
           title: "Deleting...",
           text: "Please wait while we delete the product",
@@ -180,14 +167,12 @@ const Product = () => {
           },
         });
 
-        // Delete product using the correct endpoint
         await axios.delete(`http://localhost:5000/api/products/${id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("userToken")}`,
           },
         });
 
-        // Show success message
         await Swal.fire({
           title: "Deleted!",
           text: "The product has been deleted successfully.",
@@ -196,13 +181,10 @@ const Product = () => {
           showConfirmButton: false,
         });
 
-        // Refresh products list after deletion
         fetchProducts();
       }
     } catch (err) {
       console.error("Error deleting product:", err);
-
-      // Show error message with SweetAlert
       await Swal.fire({
         title: "Error!",
         text: `Failed to delete product: ${
@@ -211,8 +193,6 @@ const Product = () => {
         icon: "error",
         confirmButtonText: "OK",
       });
-
-      // Also set error state for additional error display
       setError(
         `Failed to delete product: ${
           err.response?.data?.message || err.message
@@ -221,42 +201,30 @@ const Product = () => {
     }
   };
 
-  // Refresh both products and categories
   const handleRefresh = () => {
     fetchProducts();
     fetchCategories();
   };
 
-  // Get stock status badge color
   const getStockStatusColor = (quantity) => {
     if (quantity <= 0) return "danger";
     if (quantity < 10) return "warning";
     return "success";
   };
 
-  // Get category name by ID (if categories API returns objects with id and name)
-  const getCategoryName = (categoryId) => {
-    if (Array.isArray(categories) && categories.length > 0) {
-      // If categories is an array of objects with id and name properties
-      if (typeof categories[0] === "object" && categories[0].name) {
-        const category = categories.find((cat) => cat.id === categoryId);
-        return category ? category.name : categoryId;
-      }
-      // If categories is an array of strings
-      return categoryId;
-    }
-    return categoryId;
+  const getCategoryName = (category) => {
+    if (!category) return "No Category";
+    return typeof category === "object" ? category.name : category;
   };
 
   return (
     <>
-      {/* Add breadcrumb for better navigation */}
       <CRow>
         <CCol>
           <CBreadcrumb className="mb-3">
             <CBreadcrumbItem href="/dashboard">Home</CBreadcrumbItem>
-            <CBreadcrumbItem>Manajemen Barang</CBreadcrumbItem>
-            <CBreadcrumbItem active>Data Barang</CBreadcrumbItem>
+            <CBreadcrumbItem>Product Management</CBreadcrumbItem>
+            <CBreadcrumbItem active>Product List</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
       </CRow>
@@ -265,15 +233,14 @@ const Product = () => {
         <CCol xs={12}>
           <CCard className="mb-4">
             <CCardHeader>
-              <h5>Data Barang</h5>
+              <h5>Product List</h5>
             </CCardHeader>
             <CCardBody>
-              {/* Toolbar */}
               <CRow className="mb-3">
                 <CCol sm={12} md={6} className="mb-2 mb-md-0">
                   <CInputGroup>
                     <CFormInput
-                      placeholder="Search by name or code..."
+                      placeholder="Search by name..."
                       value={search}
                       onChange={handleSearchChange}
                     />
@@ -288,31 +255,12 @@ const Product = () => {
                     onChange={handleCategoryChange}
                     disabled={categoriesLoading}
                   >
-                    <option value="">
-                      {categoriesLoading
-                        ? "Loading categories..."
-                        : "All Categories"}
-                    </option>
-                    {categories.map((category, index) => {
-                      // Handle both array of strings and array of objects
-                      const categoryValue =
-                        typeof category === "object"
-                          ? category.id || category.name
-                          : category;
-                      const categoryLabel =
-                        typeof category === "object"
-                          ? category.name || category.id
-                          : category;
-
-                      return (
-                        <option
-                          key={category.id || index}
-                          value={categoryValue}
-                        >
-                          {categoryLabel}
-                        </option>
-                      );
-                    })}
+                    <option value="">All Categories</option>
+                    {categories.map((category) => (
+                      <option key={category._id} value={category._id}>
+                        {category.name}
+                      </option>
+                    ))}
                   </CFormSelect>
                 </CCol>
                 <CCol sm={12} md={3} className="d-flex justify-content-md-end">
@@ -327,7 +275,6 @@ const Product = () => {
                 </CCol>
               </CRow>
 
-              {/* Error Alert */}
               {error && (
                 <CAlert
                   color="danger"
@@ -338,7 +285,6 @@ const Product = () => {
                 </CAlert>
               )}
 
-              {/* Products Table */}
               {loading ? (
                 <div className="d-flex justify-content-center my-5">
                   <CSpinner color="primary" />
@@ -349,16 +295,11 @@ const Product = () => {
                     <CTableHead color="light">
                       <CTableRow>
                         <CTableHeaderCell scope="col">No</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Code</CTableHeaderCell>
                         <CTableHeaderCell scope="col">Name</CTableHeaderCell>
                         <CTableHeaderCell scope="col">
                           Category
                         </CTableHeaderCell>
-                        <CTableHeaderCell scope="col">
-                          Location
-                        </CTableHeaderCell>
                         <CTableHeaderCell scope="col">Stock</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Unit</CTableHeaderCell>
                         <CTableHeaderCell scope="col">Price</CTableHeaderCell>
                         <CTableHeaderCell scope="col">Actions</CTableHeaderCell>
                       </CTableRow>
@@ -366,24 +307,23 @@ const Product = () => {
                     <CTableBody>
                       {currentItems.length > 0 ? (
                         currentItems.map((product, index) => (
-                          <CTableRow key={product.id || index}>
+                          <CTableRow key={product._id}>
                             <CTableDataCell>
                               {indexOfFirstItem + index + 1}
                             </CTableDataCell>
-                            <CTableDataCell>{product.code}</CTableDataCell>
                             <CTableDataCell>{product.name}</CTableDataCell>
                             <CTableDataCell>
                               {getCategoryName(product.category)}
                             </CTableDataCell>
-                            <CTableDataCell>{product.location}</CTableDataCell>
                             <CTableDataCell>
                               <CBadge
-                                color={getStockStatusColor(product.quantity)}
+                                color={getStockStatusColor(
+                                  product.currentStock
+                                )}
                               >
-                                {product.quantity}
+                                {product.currentStock}
                               </CBadge>
                             </CTableDataCell>
-                            <CTableDataCell>{product.unit}</CTableDataCell>
                             <CTableDataCell>
                               {new Intl.NumberFormat("id-ID", {
                                 style: "currency",
@@ -395,7 +335,7 @@ const Product = () => {
                                 <CButton
                                   color="info"
                                   variant="outline"
-                                  onClick={() => handleEditProduct(product.id)}
+                                  onClick={() => handleEditProduct(product._id)}
                                 >
                                   <CIcon icon={cilPencil} />
                                 </CButton>
@@ -403,7 +343,10 @@ const Product = () => {
                                   color="danger"
                                   variant="outline"
                                   onClick={() =>
-                                    handleDeleteProduct(product._id)
+                                    handleDeleteProduct(
+                                      product._id,
+                                      product.name
+                                    )
                                   }
                                 >
                                   <CIcon icon={cilTrash} />
@@ -414,7 +357,7 @@ const Product = () => {
                         ))
                       ) : (
                         <CTableRow>
-                          <CTableDataCell colSpan="9" className="text-center">
+                          <CTableDataCell colSpan="6" className="text-center">
                             No products found
                           </CTableDataCell>
                         </CTableRow>
@@ -422,7 +365,6 @@ const Product = () => {
                     </CTableBody>
                   </CTable>
 
-                  {/* Pagination */}
                   {totalPages > 1 && (
                     <CPagination align="end" aria-label="Page navigation">
                       <CPaginationItem
@@ -453,7 +395,6 @@ const Product = () => {
                     </CPagination>
                   )}
 
-                  {/* Summary */}
                   <div className="text-medium-emphasis small">
                     Showing{" "}
                     {filteredProducts.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}

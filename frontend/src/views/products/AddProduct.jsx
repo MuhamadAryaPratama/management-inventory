@@ -11,7 +11,6 @@ import {
   CFormLabel,
   CFormSelect,
   CFormTextarea,
-  CAlert,
   CSpinner,
   CBreadcrumb,
   CBreadcrumbItem,
@@ -20,51 +19,38 @@ import {
   CFormFeedback,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
-import { cilSave, cilArrowLeft, cilX, cilCheckCircle } from "@coreui/icons";
+import { cilSave, cilArrowLeft, cilX } from "@coreui/icons";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 
 const AddProduct = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
   const [categories, setCategories] = useState([]);
-  const [locations, setLocations] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  // Form state
   const [formData, setFormData] = useState({
-    code: "",
     name: "",
-    category: "",
-    location: "",
-    supplier: "",
-    quantity: "",
-    unit: "",
-    price: "",
-    minStock: "",
-    maxStock: "",
     description: "",
+    price: "",
+    currentStock: "",
+    minStock: "",
+    category: "",
+    supplier: "",
   });
 
-  // Form validation state
   const [validated, setValidated] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Load initial data (categories, locations, suppliers)
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoadingData(true);
       try {
-        const [categoriesRes, locationsRes, suppliersRes] = await Promise.all([
+        const [categoriesRes, suppliersRes] = await Promise.all([
           axios.get("http://localhost:5000/api/categories", {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-            },
-          }),
-          axios.get("http://localhost:5000/api/locations", {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("userToken")}`,
             },
@@ -77,11 +63,14 @@ const AddProduct = () => {
         ]);
 
         setCategories(categoriesRes.data || []);
-        setLocations(locationsRes.data || []);
         setSuppliers(suppliersRes.data || []);
       } catch (err) {
         console.error("Error fetching initial data:", err);
-        setError("Failed to load form data. Please refresh the page.");
+        Swal.fire(
+          "Error",
+          "Failed to load form data. Please refresh the page.",
+          "error"
+        );
       } finally {
         setLoadingData(false);
       }
@@ -90,7 +79,6 @@ const AddProduct = () => {
     fetchInitialData();
   }, []);
 
-  // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -98,7 +86,6 @@ const AddProduct = () => {
       [name]: value,
     }));
 
-    // Clear specific field error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
@@ -107,76 +94,47 @@ const AddProduct = () => {
     }
   };
 
-  // Generate product code automatically
-  const generateProductCode = () => {
-    const timestamp = Date.now().toString().slice(-6);
-    const randomNum = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0");
-    const code = `PRD${timestamp}${randomNum}`;
-    setFormData((prev) => ({
-      ...prev,
-      code: code,
-    }));
-  };
-
-  // Validate form
   const validateForm = () => {
     const newErrors = {};
 
-    // Required field validation
-    if (!formData.code.trim()) newErrors.code = "Product code is required";
     if (!formData.name.trim()) newErrors.name = "Product name is required";
     if (!formData.category) newErrors.category = "Category is required";
-    if (!formData.location) newErrors.location = "Location is required";
-    if (!formData.unit.trim()) newErrors.unit = "Unit is required";
+    if (!formData.supplier) newErrors.supplier = "Supplier is required";
 
-    // Numeric validation
-    if (!formData.quantity || formData.quantity <= 0) {
-      newErrors.quantity = "Quantity must be greater than 0";
-    }
     if (!formData.price || formData.price <= 0) {
       newErrors.price = "Price must be greater than 0";
     }
+    if (!formData.currentStock || formData.currentStock < 0) {
+      newErrors.currentStock = "Stock cannot be negative";
+    }
     if (formData.minStock && formData.minStock < 0) {
       newErrors.minStock = "Minimum stock cannot be negative";
-    }
-    if (formData.maxStock && formData.maxStock < 0) {
-      newErrors.maxStock = "Maximum stock cannot be negative";
-    }
-    if (
-      formData.minStock &&
-      formData.maxStock &&
-      parseInt(formData.minStock) >= parseInt(formData.maxStock)
-    ) {
-      newErrors.maxStock = "Maximum stock must be greater than minimum stock";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     setValidated(true);
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     setError(null);
 
     try {
       const productData = {
-        ...formData,
-        quantity: parseInt(formData.quantity),
+        name: formData.name,
+        description: formData.description,
         price: parseFloat(formData.price),
-        minStock: formData.minStock ? parseInt(formData.minStock) : null,
-        maxStock: formData.maxStock ? parseInt(formData.maxStock) : null,
+        currentStock: parseInt(formData.currentStock),
+        minStock: formData.minStock ? parseInt(formData.minStock) : 0,
+        category: formData.category,
+        supplier: formData.supplier,
       };
 
       await axios.post("http://localhost:5000/api/products", productData, {
@@ -186,43 +144,39 @@ const AddProduct = () => {
         },
       });
 
-      setSuccess(true);
-
-      // Redirect after success
-      setTimeout(() => {
+      Swal.fire({
+        icon: "success",
+        title: "Product Added",
+        text: "Product added successfully!",
+        confirmButtonText: "OK",
+      }).then(() => {
         navigate("/product-management/items");
-      }, 2000);
+      });
     } catch (err) {
       console.error("Error adding product:", err);
-      setError(
-        `Failed to add product: ${
-          err.response?.data?.message || err.message
-        }. Please try again.`
-      );
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Add Product",
+        text: err.response?.data?.message || err.message,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle cancel
   const handleCancel = () => {
-    navigate("/product-management/items");
+    navigate("/product-management");
   };
 
-  // Reset form
   const handleReset = () => {
     setFormData({
-      code: "",
       name: "",
-      category: "",
-      location: "",
-      supplier: "",
-      quantity: "",
-      unit: "",
-      price: "",
-      minStock: "",
-      maxStock: "",
       description: "",
+      price: "",
+      currentStock: "",
+      minStock: "",
+      category: "",
+      supplier: "",
     });
     setValidated(false);
     setErrors({});
@@ -239,16 +193,15 @@ const AddProduct = () => {
 
   return (
     <>
-      {/* Breadcrumb */}
       <CRow>
         <CCol>
           <CBreadcrumb className="mb-3">
             <CBreadcrumbItem href="/dashboard">Home</CBreadcrumbItem>
-            <CBreadcrumbItem>Manajemen Barang</CBreadcrumbItem>
-            <CBreadcrumbItem href="/product-management/items">
-              Data Barang
+            <CBreadcrumbItem>Product Management</CBreadcrumbItem>
+            <CBreadcrumbItem href="/product-management">
+              Product List
             </CBreadcrumbItem>
-            <CBreadcrumbItem active>Tambah Barang</CBreadcrumbItem>
+            <CBreadcrumbItem active>Add Product</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
       </CRow>
@@ -257,66 +210,16 @@ const AddProduct = () => {
         <CCol xs={12}>
           <CCard className="mb-4">
             <CCardHeader>
-              <h5>Tambah Barang Baru</h5>
+              <h5>Add New Product</h5>
             </CCardHeader>
             <CCardBody>
-              {/* Success Alert */}
-              {success && (
-                <CAlert color="success" className="d-flex align-items-center">
-                  <CIcon icon={cilCheckCircle} className="me-2" />
-                  Product added successfully! Redirecting...
-                </CAlert>
-              )}
-
-              {/* Error Alert */}
-              {error && (
-                <CAlert
-                  color="danger"
-                  dismissible
-                  onClose={() => setError(null)}
-                >
-                  {error}
-                </CAlert>
-              )}
-
               <CForm
                 className={validated ? "was-validated" : ""}
                 onSubmit={handleSubmit}
                 noValidate
               >
                 <CRow>
-                  {/* Left Column */}
                   <CCol md={6}>
-                    {/* Product Code */}
-                    <div className="mb-3">
-                      <CFormLabel htmlFor="code">
-                        Product Code <span className="text-danger">*</span>
-                      </CFormLabel>
-                      <CInputGroup>
-                        <CFormInput
-                          type="text"
-                          id="code"
-                          name="code"
-                          value={formData.code}
-                          onChange={handleInputChange}
-                          placeholder="Enter product code"
-                          invalid={!!errors.code}
-                          required
-                        />
-                        <CButton
-                          type="button"
-                          color="secondary"
-                          variant="outline"
-                          onClick={generateProductCode}
-                          title="Generate Code"
-                        >
-                          Generate
-                        </CButton>
-                        <CFormFeedback invalid>{errors.code}</CFormFeedback>
-                      </CInputGroup>
-                    </div>
-
-                    {/* Product Name */}
                     <div className="mb-3">
                       <CFormLabel htmlFor="name">
                         Product Name <span className="text-danger">*</span>
@@ -334,7 +237,6 @@ const AddProduct = () => {
                       <CFormFeedback invalid>{errors.name}</CFormFeedback>
                     </div>
 
-                    {/* Category */}
                     <div className="mb-3">
                       <CFormLabel htmlFor="category">
                         Category <span className="text-danger">*</span>
@@ -348,97 +250,39 @@ const AddProduct = () => {
                         required
                       >
                         <option value="">Select Category</option>
-                        {categories.map((category, index) => (
-                          <option key={index} value={category.name || category}>
-                            {category.name || category}
+                        {categories.map((category) => (
+                          <option key={category._id} value={category._id}>
+                            {category.name}
                           </option>
                         ))}
                       </CFormSelect>
                       <CFormFeedback invalid>{errors.category}</CFormFeedback>
                     </div>
 
-                    {/* Location */}
                     <div className="mb-3">
-                      <CFormLabel htmlFor="location">
-                        Storage Location <span className="text-danger">*</span>
+                      <CFormLabel htmlFor="supplier">
+                        Supplier <span className="text-danger">*</span>
                       </CFormLabel>
-                      <CFormSelect
-                        id="location"
-                        name="location"
-                        value={formData.location}
-                        onChange={handleInputChange}
-                        invalid={!!errors.location}
-                        required
-                      >
-                        <option value="">Select Location</option>
-                        {locations.map((location, index) => (
-                          <option key={index} value={location.name || location}>
-                            {location.name || location}
-                          </option>
-                        ))}
-                      </CFormSelect>
-                      <CFormFeedback invalid>{errors.location}</CFormFeedback>
-                    </div>
-
-                    {/* Supplier */}
-                    <div className="mb-3">
-                      <CFormLabel htmlFor="supplier">Supplier</CFormLabel>
                       <CFormSelect
                         id="supplier"
                         name="supplier"
                         value={formData.supplier}
                         onChange={handleInputChange}
+                        invalid={!!errors.supplier}
+                        required
                       >
-                        <option value="">Select Supplier (Optional)</option>
-                        {suppliers.map((supplier, index) => (
-                          <option key={index} value={supplier.name || supplier}>
-                            {supplier.name || supplier}
+                        <option value="">Select Supplier</option>
+                        {suppliers.map((supplier) => (
+                          <option key={supplier._id} value={supplier._id}>
+                            {supplier.name}
                           </option>
                         ))}
                       </CFormSelect>
+                      <CFormFeedback invalid>{errors.supplier}</CFormFeedback>
                     </div>
                   </CCol>
 
-                  {/* Right Column */}
                   <CCol md={6}>
-                    {/* Quantity */}
-                    <div className="mb-3">
-                      <CFormLabel htmlFor="quantity">
-                        Initial Stock <span className="text-danger">*</span>
-                      </CFormLabel>
-                      <CFormInput
-                        type="number"
-                        id="quantity"
-                        name="quantity"
-                        value={formData.quantity}
-                        onChange={handleInputChange}
-                        placeholder="Enter initial stock quantity"
-                        min="0"
-                        invalid={!!errors.quantity}
-                        required
-                      />
-                      <CFormFeedback invalid>{errors.quantity}</CFormFeedback>
-                    </div>
-
-                    {/* Unit */}
-                    <div className="mb-3">
-                      <CFormLabel htmlFor="unit">
-                        Unit <span className="text-danger">*</span>
-                      </CFormLabel>
-                      <CFormInput
-                        type="text"
-                        id="unit"
-                        name="unit"
-                        value={formData.unit}
-                        onChange={handleInputChange}
-                        placeholder="e.g., pcs, kg, liter"
-                        invalid={!!errors.unit}
-                        required
-                      />
-                      <CFormFeedback invalid>{errors.unit}</CFormFeedback>
-                    </div>
-
-                    {/* Price */}
                     <div className="mb-3">
                       <CFormLabel htmlFor="price">
                         Unit Price <span className="text-danger">*</span>
@@ -461,7 +305,26 @@ const AddProduct = () => {
                       </CInputGroup>
                     </div>
 
-                    {/* Min Stock */}
+                    <div className="mb-3">
+                      <CFormLabel htmlFor="currentStock">
+                        Initial Stock <span className="text-danger">*</span>
+                      </CFormLabel>
+                      <CFormInput
+                        type="number"
+                        id="currentStock"
+                        name="currentStock"
+                        value={formData.currentStock}
+                        onChange={handleInputChange}
+                        placeholder="Enter initial stock quantity"
+                        min="0"
+                        invalid={!!errors.currentStock}
+                        required
+                      />
+                      <CFormFeedback invalid>
+                        {errors.currentStock}
+                      </CFormFeedback>
+                    </div>
+
                     <div className="mb-3">
                       <CFormLabel htmlFor="minStock">Minimum Stock</CFormLabel>
                       <CFormInput
@@ -476,26 +339,9 @@ const AddProduct = () => {
                       />
                       <CFormFeedback invalid>{errors.minStock}</CFormFeedback>
                     </div>
-
-                    {/* Max Stock */}
-                    <div className="mb-3">
-                      <CFormLabel htmlFor="maxStock">Maximum Stock</CFormLabel>
-                      <CFormInput
-                        type="number"
-                        id="maxStock"
-                        name="maxStock"
-                        value={formData.maxStock}
-                        onChange={handleInputChange}
-                        placeholder="Maximum stock capacity"
-                        min="0"
-                        invalid={!!errors.maxStock}
-                      />
-                      <CFormFeedback invalid>{errors.maxStock}</CFormFeedback>
-                    </div>
                   </CCol>
                 </CRow>
 
-                {/* Description */}
                 <CRow>
                   <CCol xs={12}>
                     <div className="mb-4">
@@ -512,7 +358,6 @@ const AddProduct = () => {
                   </CCol>
                 </CRow>
 
-                {/* Action Buttons */}
                 <CRow>
                   <CCol xs={12}>
                     <div className="d-flex justify-content-between">
