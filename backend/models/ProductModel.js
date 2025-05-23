@@ -31,21 +31,21 @@ const Product = new mongoose.Schema({
   },
   category: {
     type: mongoose.Schema.ObjectId,
-    ref: "Category",
+    ref: "Categories",
   },
   supplier: {
     type: mongoose.Schema.ObjectId,
-    ref: "Supplier",
+    ref: "Suppliers",
     required: [true, "Supplier is required"],
   },
   createdBy: {
     type: mongoose.Schema.ObjectId,
-    ref: "User",
+    ref: "Users",
     required: true,
   },
   updatedBy: {
     type: mongoose.Schema.ObjectId,
-    ref: "User",
+    ref: "Users",
   },
   createdAt: {
     type: Date,
