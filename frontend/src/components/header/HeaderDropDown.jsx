@@ -49,6 +49,12 @@ const AppHeaderDropdown = () => {
           localStorage.setItem("userToken", refreshData.token);
           setTokenWithExpiry(refreshData.token);
 
+          // Update user data if available in refresh response
+          if (refreshData.user) {
+            setUser(refreshData.user);
+            localStorage.setItem("userData", JSON.stringify(refreshData.user));
+          }
+
           // Dispatch an event to notify other components about token refresh
           window.dispatchEvent(new Event("userLoggedIn"));
 
@@ -66,8 +72,10 @@ const AppHeaderDropdown = () => {
 
           if (retryResponse.ok) {
             const userData = await retryResponse.json();
-            setUser(userData);
-            localStorage.setItem("userData", JSON.stringify(userData));
+            // Handle both response formats: {user: {...}} or direct user object
+            const userInfo = userData.user || userData;
+            setUser(userInfo);
+            localStorage.setItem("userData", JSON.stringify(userInfo));
             setLoading(false);
             return;
           }
@@ -86,9 +94,11 @@ const AppHeaderDropdown = () => {
       }
 
       const userData = await response.json();
-      setUser(userData);
+      // Handle both response formats: {user: {...}} or direct user object
+      const userInfo = userData.user || userData;
+      setUser(userInfo);
 
-      localStorage.setItem("userData", JSON.stringify(userData));
+      localStorage.setItem("userData", JSON.stringify(userInfo));
       setTokenWithExpiry(token);
     } catch (error) {
       console.error("Error fetching user data:", error.message || error);

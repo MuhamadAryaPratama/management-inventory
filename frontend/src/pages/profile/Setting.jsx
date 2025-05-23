@@ -68,30 +68,56 @@ const Settings = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
+          credentials: "include",
         });
+
+        if (response.status === 401) {
+          // Token expired, try to refresh it
+          const refreshResponse = await fetch(
+            "http://localhost:5000/api/auth/refresh-token",
+            {
+              method: "POST",
+              credentials: "include",
+            }
+          );
+
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            localStorage.setItem("userToken", refreshData.token);
+
+            // Try to get user data again with new token
+            const retryResponse = await fetch(
+              "http://localhost:5000/api/auth/me",
+              {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${refreshData.token}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            if (retryResponse.ok) {
+              const userData = await retryResponse.json();
+              const userInfo = userData.user || userData;
+              updateFormWithUserData(userInfo);
+              return;
+            }
+          }
+
+          // If refresh failed, redirect to login
+          navigate("/login");
+          return;
+        }
 
         if (!response.ok) {
           throw new Error("Failed to fetch user data");
         }
 
         const userData = await response.json();
-
-        // Update form with user data
-        setFormData((prev) => ({
-          ...prev,
-          name: userData.name || "",
-          email: userData.email || "",
-          phone: userData.phone || "",
-          address: userData.address || "",
-        }));
-
-        // Save original data for comparison
-        setOriginalData({
-          name: userData.name || "",
-          email: userData.email || "",
-          phone: userData.phone || "",
-          address: userData.address || "",
-        });
+        // Handle both response formats: {user: {...}} or direct user object
+        const userInfo = userData.user || userData;
+        updateFormWithUserData(userInfo);
       } catch (err) {
         console.error("Error fetching user data:", err);
         setError("Failed to load user data. Please try again later.");
@@ -101,19 +127,8 @@ const Settings = () => {
         if (cachedData) {
           try {
             const userData = JSON.parse(cachedData);
-            setFormData((prev) => ({
-              ...prev,
-              name: userData.name || "",
-              email: userData.email || "",
-              phone: userData.phone || "",
-              address: userData.address || "",
-            }));
-            setOriginalData({
-              name: userData.name || "",
-              email: userData.email || "",
-              phone: userData.phone || "",
-              address: userData.address || "",
-            });
+            updateFormWithUserData(userData);
+            setError(""); // Clear error if we have cached data
           } catch (e) {
             console.error("Error parsing cached data:", e);
           }
@@ -123,7 +138,43 @@ const Settings = () => {
       }
     };
 
+    const updateFormWithUserData = (userData) => {
+      // Update form with user data
+      const userFormData = {
+        name: userData.name || "",
+        email: userData.email || "",
+        phone: userData.phone || "",
+        address: userData.address || "",
+      };
+
+      setFormData((prev) => ({
+        ...prev,
+        ...userFormData,
+      }));
+
+      // Save original data for comparison
+      setOriginalData(userFormData);
+    };
+
     fetchUserData();
+
+    // Listen for user data updates
+    const handleUserUpdate = () => {
+      const userData = localStorage.getItem("userData");
+      if (userData) {
+        try {
+          const userInfo = JSON.parse(userData);
+          updateFormWithUserData(userInfo);
+        } catch (e) {
+          console.error("Error parsing updated user data:", e);
+        }
+      }
+    };
+
+    window.addEventListener("userLoggedIn", handleUserUpdate);
+    return () => {
+      window.removeEventListener("userLoggedIn", handleUserUpdate);
+    };
   }, [navigate]);
 
   // Handle form input changes
@@ -226,6 +277,23 @@ const Settings = () => {
         return;
       }
 
+      // Get current user data to get the user ID
+      const cachedUserData = localStorage.getItem("userData");
+      let userId = null;
+
+      if (cachedUserData) {
+        try {
+          const userData = JSON.parse(cachedUserData);
+          userId = userData._id;
+        } catch (e) {
+          console.error("Error parsing user data:", e);
+        }
+      }
+
+      if (!userId) {
+        throw new Error("User ID not found");
+      }
+
       // Prepare data to update
       const updateData = {
         name: formData.name,
@@ -241,14 +309,17 @@ const Settings = () => {
       }
 
       // Make API call to update user data
-      const response = await fetch("http://localhost:5000/api/users/{id}", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateData),
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/users/${userId}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateData),
+        }
+      );
 
       const data = await response.json();
 
@@ -257,18 +328,20 @@ const Settings = () => {
       }
 
       // Update localStorage with fresh data
-      localStorage.setItem("userData", JSON.stringify(data.user));
+      const updatedUser = data.user || data;
+      localStorage.setItem("userData", JSON.stringify(updatedUser));
 
       // Dispatch event to update other components
       window.dispatchEvent(new Event("userLoggedIn"));
 
       // Update original data for comparison
-      setOriginalData({
-        name: data.user.name || "",
-        email: data.user.email || "",
-        phone: data.user.phone || "",
-        address: data.user.address || "",
-      });
+      const newOriginalData = {
+        name: updatedUser.name || "",
+        email: updatedUser.email || "",
+        phone: updatedUser.phone || "",
+        address: updatedUser.address || "",
+      };
+      setOriginalData(newOriginalData);
 
       // Reset password fields
       if (changePassword) {

@@ -95,14 +95,14 @@ export const login = async (req, res) => {
       return res.json({
         success: true,
         message: "Login successful",
-        // user: {
-        //   _id: user._id,
-        //   name: user.name,
-        //   phone: user.phone,
-        //   address: user.address,
-        //   email: user.email,
-        //   role: user.role,
-        // },
+        user: {
+          _id: user._id,
+          name: user.name,
+          phone: user.phone,
+          address: user.address,
+          email: user.email,
+          role: user.role,
+        },
         token: accessToken,
       });
     } else {

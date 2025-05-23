@@ -48,17 +48,60 @@ const Profile = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
+          credentials: "include",
         });
+
+        if (response.status === 401) {
+          // Token expired, try to refresh it
+          const refreshResponse = await fetch(
+            "http://localhost:5000/api/auth/refresh-token",
+            {
+              method: "POST",
+              credentials: "include",
+            }
+          );
+
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            localStorage.setItem("userToken", refreshData.token);
+
+            // Try to get user data again with new token
+            const retryResponse = await fetch(
+              "http://localhost:5000/api/auth/me",
+              {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${refreshData.token}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            if (retryResponse.ok) {
+              const userData = await retryResponse.json();
+              const userInfo = userData.user || userData;
+              setUser(userInfo);
+              localStorage.setItem("userData", JSON.stringify(userInfo));
+              return;
+            }
+          }
+
+          // If refresh failed, redirect to login
+          navigate("/login");
+          return;
+        }
 
         if (!response.ok) {
           throw new Error("Failed to fetch user profile");
         }
 
         const userData = await response.json();
-        setUser(userData);
+        // Handle both response formats: {user: {...}} or direct user object
+        const userInfo = userData.user || userData;
+        setUser(userInfo);
 
         // Update localStorage with fresh data
-        localStorage.setItem("userData", JSON.stringify(userData));
+        localStorage.setItem("userData", JSON.stringify(userInfo));
       } catch (err) {
         console.error("Error fetching profile:", err);
         setError("Failed to load profile data. Please try again later.");
@@ -67,7 +110,9 @@ const Profile = () => {
         const cachedData = localStorage.getItem("userData");
         if (cachedData) {
           try {
-            setUser(JSON.parse(cachedData));
+            const cachedUser = JSON.parse(cachedData);
+            setUser(cachedUser);
+            setError(""); // Clear error if we have cached data
           } catch (e) {
             console.error("Error parsing cached data:", e);
           }
@@ -78,6 +123,23 @@ const Profile = () => {
     };
 
     fetchUserProfile();
+
+    // Listen for user data updates
+    const handleUserUpdate = () => {
+      const userData = localStorage.getItem("userData");
+      if (userData) {
+        try {
+          setUser(JSON.parse(userData));
+        } catch (e) {
+          console.error("Error parsing updated user data:", e);
+        }
+      }
+    };
+
+    window.addEventListener("userLoggedIn", handleUserUpdate);
+    return () => {
+      window.removeEventListener("userLoggedIn", handleUserUpdate);
+    };
   }, [navigate]);
 
   const handleEditProfile = () => {
@@ -129,6 +191,14 @@ const Profile = () => {
         <CCol md={4}>
           <CCard className="mb-4">
             <CCardBody className="text-center">
+              <div className="mb-3">
+                <div
+                  className="d-inline-flex justify-content-center align-items-center rounded-circle bg-primary text-white"
+                  style={{ width: "80px", height: "80px", fontSize: "32px" }}
+                >
+                  {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+                </div>
+              </div>
               <CCardTitle className="mb-0 fs-4">
                 {user?.name || "User"}
               </CCardTitle>
@@ -222,6 +292,14 @@ const Profile = () => {
                   <div className="ms-2">
                     <div className="small text-medium-emphasis">Role</div>
                     <div className="fw-bold">{user?.role || "User"}</div>
+                  </div>
+                </CListGroupItem>
+                <CListGroupItem className="d-flex align-items-center">
+                  <div className="ms-2">
+                    <div className="small text-medium-emphasis">User ID</div>
+                    <div className="fw-bold">
+                      {user?._id || "Not available"}
+                    </div>
                   </div>
                 </CListGroupItem>
               </CListGroup>
