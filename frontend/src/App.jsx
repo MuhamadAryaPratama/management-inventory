@@ -9,7 +9,8 @@ import "./styles/Styles.scss";
 import Layout from "./layout/Layout";
 import Dashboard from "./views/Dashboard";
 import Product from "./views/products/Product";
-import AddProduct from "./views/products/AddProduct"; // Import AddProduct component
+import AddProduct from "./views/products/AddProduct";
+import IncomingGoods from "./views/transaction/IncomingGoods";
 import Category from "./views/category/Category";
 import Supplier from "./views/supplier/Supplier";
 import Login from "./pages/Login";
@@ -17,6 +18,8 @@ import Register from "./pages/Register";
 import Profile from "./pages/profile/Profile";
 import Settings from "./pages/profile/Setting";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import OutgoingGoods from "./views/transaction/OutgoingGoods";
+import History from "./views/transaction/History";
 
 function App() {
   return (
@@ -46,6 +49,19 @@ function App() {
             <Route path="/suplier/suppliers" element={<Supplier />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
+            {/* Transaction Management Routes */}
+            <Route
+              path="/inventory-transactions/incoming"
+              element={<IncomingGoods />}
+            />
+            <Route
+              path="/inventory-transactions/outgoing"
+              element={<OutgoingGoods />}
+            />
+            <Route
+              path="/inventory-transactions/history"
+              element={<History />}
+            />
           </Route>
         </Route>
 

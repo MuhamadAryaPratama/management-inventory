@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const EOQ = new mongoose.Schema({
   product: {
     type: mongoose.Schema.ObjectId,
-    ref: "Product",
+    ref: "Products",
     required: true,
     unique: true,
   },
