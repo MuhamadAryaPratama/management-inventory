@@ -294,14 +294,6 @@ const Profile = () => {
                     <div className="fw-bold">{user?.role || "User"}</div>
                   </div>
                 </CListGroupItem>
-                <CListGroupItem className="d-flex align-items-center">
-                  <div className="ms-2">
-                    <div className="small text-medium-emphasis">User ID</div>
-                    <div className="fw-bold">
-                      {user?._id || "Not available"}
-                    </div>
-                  </div>
-                </CListGroupItem>
               </CListGroup>
             </CCardBody>
           </CCard>

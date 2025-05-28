@@ -222,7 +222,7 @@ const AppHeaderDropdown = () => {
         {renderAvatar()}
       </CDropdownToggle>
       <CDropdownMenu className="pt-0" placement="bottom-end">
-        <CDropdownItem onClick={handleProfileClick}>
+        <CDropdownItem>
           <div className="fw-semibold">{displayName}</div>
         </CDropdownItem>
         <CDropdownItem divider="true" />

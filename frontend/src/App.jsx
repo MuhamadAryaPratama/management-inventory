@@ -20,6 +20,12 @@ import Settings from "./pages/profile/Setting";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import OutgoingGoods from "./views/transaction/OutgoingGoods";
 import History from "./views/transaction/History";
+// Import EOQ components
+import CalculatorEoq from "./views/eoq/CalculatorEoq";
+import Eoq from "./views/eoq/Eoq";
+import CalculatorRop from "./views/rop/CalculatorRop";
+import Rop from "./views/rop/Rop";
+import User from "./views/users/User";
 
 function App() {
   return (
@@ -34,21 +40,22 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
+
             {/* Product Management Routes */}
             <Route path="/product-management/items" element={<Product />} />
-            <Route
-              path="/product-management/add"
-              element={<AddProduct />}
-            />{" "}
-            {/* Add this route */}
+            <Route path="/product-management/add" element={<AddProduct />} />
             <Route
               path="/product-management/categories"
               element={<Category />}
             />
+
             {/* Supplier Management Routes */}
             <Route path="/suplier/suppliers" element={<Supplier />} />
+
+            {/* Profile Routes */}
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
+
             {/* Transaction Management Routes */}
             <Route
               path="/inventory-transactions/incoming"
@@ -62,6 +69,17 @@ function App() {
               path="/inventory-transactions/history"
               element={<History />}
             />
+
+            {/* EOQ Routes */}
+            <Route path="/eoq/calculator" element={<CalculatorEoq />} />
+            <Route path="/eoq/data" element={<Eoq />} />
+
+            {/* ROP Routes */}
+            <Route path="/rop/calculator" element={<CalculatorRop />} />
+            <Route path="/rop/data" element={<Rop />} />
+
+            {/* User Routes */}
+            <Route path="/user-management/users" element={<User />} />
           </Route>
         </Route>
 

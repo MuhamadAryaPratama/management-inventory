@@ -18,7 +18,7 @@ router
 
 router
   .route("/:id")
-  .get(protect, asyncHandler(getUserById)) // Added route to get user by ID
+  .get(protect, asyncHandler(getUserById))
   .put(protect, role("pemilik"), asyncHandler(updateUser))
   .delete(protect, role("pemilik"), asyncHandler(deleteUser));
 

@@ -3,9 +3,7 @@ import CIcon from "@coreui/icons-react";
 import {
   cilSpeedometer,
   cilPuzzle,
-  cilPlus,
   cilTags,
-  cilHome,
   cilFactory,
   cilDrop,
   cilStorage,
