@@ -108,10 +108,6 @@ const User = () => {
   const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
-  const handleAddUser = () => {
-    navigate("/user-management/add");
-  };
-
   const handleEditUser = (id) => {
     navigate(`/user-management/edit/${id}`);
   };
@@ -244,9 +240,6 @@ const User = () => {
                 <CCol sm={12} md={2} className="mb-2 mb-md-0"></CCol>
                 <CCol sm={12} md={4} className="d-flex justify-content-md-end">
                   <CButtonGroup>
-                    <CButton color="primary" onClick={handleAddUser}>
-                      <CIcon icon={cilPlus} className="me-1" /> Add User
-                    </CButton>
                     <CButton color="secondary" onClick={handleRefresh}>
                       <CIcon icon={cilReload} />
                     </CButton>

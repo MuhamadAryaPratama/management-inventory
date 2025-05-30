@@ -22,32 +22,23 @@ import {
   CModalFooter,
   CModalHeader,
   CModalTitle,
-  CForm,
-  CFormLabel,
-  CFormSelect,
   CPagination,
   CPaginationItem,
-  CDropdown,
-  CDropdownToggle,
-  CDropdownMenu,
-  CDropdownItem,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import {
   cilStorage,
   cilSearch,
   cilReload,
-  cilPencil,
-  cilTrash,
   cilInfo,
   cilCalculator,
-  cilOptions,
 } from "@coreui/icons";
 import axios from "axios";
 
 const Eoq = () => {
   const [eoqData, setEoqData] = useState([]);
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -63,31 +54,30 @@ const Eoq = () => {
 
   // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEoq, setSelectedEoq] = useState(null);
 
-  // Edit modal states
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editFormData, setEditFormData] = useState({
-    orderingCost: "",
-    holdingCost: "",
-    annualDemand: "",
-  });
-  const [updating, setUpdating] = useState(false);
-
   useEffect(() => {
-    fetchEoqData();
-    fetchProducts();
+    fetchAllData();
   }, []);
 
   useEffect(() => {
     filterAndSortData();
   }, [eoqData, searchTerm, sortConfig]);
 
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([fetchEoqData(), fetchProducts(), fetchCategories()]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setError("Gagal memuat data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchEoqData = async () => {
     try {
-      setLoading(true);
-      // Fixed: Use consistent token key and API endpoint
       const token = localStorage.getItem("userToken");
       const response = await axios.get("http://localhost:5000/api/eoq", {
         headers: { Authorization: `Bearer ${token}` },
@@ -95,33 +85,110 @@ const Eoq = () => {
       setEoqData(response.data.data || response.data || []);
     } catch (error) {
       console.error("Error fetching EOQ data:", error);
-      setError("Gagal memuat data EOQ");
-    } finally {
-      setLoading(false);
+      throw new Error("Gagal memuat data EOQ");
     }
   };
 
   const fetchProducts = async () => {
     try {
-      // Fixed: Use consistent token key and API endpoint
       const token = localStorage.getItem("userToken");
       const response = await axios.get("http://localhost:5000/api/products", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setProducts(response.data || []);
+      // Ensure we get the same structure as Product.jsx
+      setProducts(response.data.data || response.data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
-      setError("Gagal memuat data produk");
+      throw new Error("Gagal memuat data produk");
     }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem("userToken");
+      const response = await axios.get("http://localhost:5000/api/categories", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // Ensure we get the same structure as Product.jsx
+      setCategories(response.data.data || response.data || []);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      throw new Error("Gagal memuat data kategori");
+    }
+  };
+
+  // Helper function to get product data with populated category
+  const getProductWithCategory = (productId) => {
+    const product = products.find(
+      (p) => p._id === productId || p.id === productId
+    );
+
+    if (!product) return null;
+
+    // Handle different possible category structures from Product.jsx
+    let categoryData = null;
+
+    if (product.category) {
+      if (typeof product.category === "object") {
+        // Category is already populated (like in Product.jsx)
+        categoryData = product.category;
+      } else {
+        // Category is just an ID, find it in categories array
+        categoryData = categories.find(
+          (c) => c._id === product.category || c.id === product.category
+        );
+      }
+    } else if (product.categoryId) {
+      // Handle categoryId field
+      categoryData = categories.find(
+        (c) => c._id === product.categoryId || c.id === product.categoryId
+      );
+    } else if (product.category_id) {
+      // Handle category_id field
+      categoryData = categories.find(
+        (c) => c._id === product.category_id || c.id === product.category_id
+      );
+    }
+
+    return {
+      ...product,
+      category: categoryData || null,
+    };
+  };
+
+  // Helper function to get category name (consistent with Product.jsx)
+  const getCategoryName = (productId) => {
+    const productWithCategory = getProductWithCategory(productId);
+
+    if (!productWithCategory || !productWithCategory.category) {
+      return "Tidak ada kategori";
+    }
+
+    const category = productWithCategory.category;
+    return typeof category === "object" ? category.name : category;
+  };
+
+  // Helper function to get product name (consistent with Product.jsx)
+  const getProductName = (productId) => {
+    const product = products.find(
+      (p) => p._id === productId || p.id === productId
+    );
+    return product?.name || "N/A";
   };
 
   const filterAndSortData = () => {
     let filtered = eoqData.filter((item) => {
-      const productName = item.product?.name?.toLowerCase() || "";
-      const productSku = item.product?.sku?.toLowerCase() || "";
+      const productId =
+        item.productId ||
+        item.product_id ||
+        item.product?.id ||
+        item.product?._id;
+
+      const productName = getProductName(productId)?.toLowerCase() || "";
+      const categoryName = getCategoryName(productId)?.toLowerCase() || "";
       const search = searchTerm.toLowerCase();
 
-      return productName.includes(search) || productSku.includes(search);
+      return productName.includes(search) || categoryName.includes(search);
     });
 
     if (sortConfig.key) {
@@ -130,8 +197,19 @@ const Eoq = () => {
         let bValue = b[sortConfig.key];
 
         if (sortConfig.key === "product") {
-          aValue = a.product?.name || "";
-          bValue = b.product?.name || "";
+          const aProductId =
+            a.productId || a.product_id || a.product?.id || a.product?._id;
+          const bProductId =
+            b.productId || b.product_id || b.product?.id || b.product?._id;
+          aValue = getProductName(aProductId) || "";
+          bValue = getProductName(bProductId) || "";
+        } else if (sortConfig.key === "category") {
+          const aProductId =
+            a.productId || a.product_id || a.product?.id || a.product?._id;
+          const bProductId =
+            b.productId || b.product_id || b.product?.id || b.product?._id;
+          aValue = getCategoryName(aProductId) || "";
+          bValue = getCategoryName(bProductId) || "";
         }
 
         if (typeof aValue === "string") {
@@ -158,65 +236,6 @@ const Eoq = () => {
       direction = "desc";
     }
     setSortConfig({ key, direction });
-  };
-
-  const handleEdit = (eoq) => {
-    setSelectedEoq(eoq);
-    setEditFormData({
-      orderingCost: eoq.orderingCost.toString(),
-      holdingCost: eoq.holdingCost.toString(),
-      annualDemand: eoq.annualDemand.toString(),
-    });
-    setShowEditModal(true);
-  };
-
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-
-    try {
-      setUpdating(true);
-      // Fixed: Use consistent token key and API endpoint
-      const token = localStorage.getItem("userToken");
-
-      await axios.put(
-        `http://localhost:5000/api/eoq/${selectedEoq._id}`,
-        {
-          orderingCost: parseFloat(editFormData.orderingCost),
-          holdingCost: parseFloat(editFormData.holdingCost),
-          annualDemand: parseFloat(editFormData.annualDemand),
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      setSuccess("Data EOQ berhasil diperbarui");
-      setShowEditModal(false);
-      fetchEoqData();
-    } catch (error) {
-      console.error("Error updating EOQ:", error);
-      setError(error.response?.data?.message || "Gagal memperbarui data EOQ");
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      // Fixed: Use consistent token key and API endpoint
-      const token = localStorage.getItem("userToken");
-      await axios.delete(`http://localhost:5000/api/eoq/${selectedEoq._id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      setSuccess("Data EOQ berhasil dihapus");
-      setShowDeleteModal(false);
-      setSelectedEoq(null);
-      fetchEoqData();
-    } catch (error) {
-      console.error("Error deleting EOQ:", error);
-      setError(error.response?.data?.message || "Gagal menghapus data EOQ");
-    }
   };
 
   const formatCurrency = (amount) => {
@@ -284,7 +303,7 @@ const Eoq = () => {
                   color="secondary"
                   variant="outline"
                   size="sm"
-                  onClick={fetchEoqData}
+                  onClick={fetchAllData}
                   disabled={loading}
                 >
                   <CIcon icon={cilReload} className="me-1" />
@@ -313,7 +332,7 @@ const Eoq = () => {
                 <CCol md={6}>
                   <CInputGroup>
                     <CFormInput
-                      placeholder="Cari berdasarkan nama produk atau SKU..."
+                      placeholder="Cari berdasarkan nama produk atau kategori..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -346,6 +365,14 @@ const Eoq = () => {
                         >
                           Produk{" "}
                           {sortConfig.key === "product" &&
+                            (sortConfig.direction === "asc" ? "↑" : "↓")}
+                        </CTableHeaderCell>
+                        <CTableHeaderCell
+                          style={{ cursor: "pointer" }}
+                          onClick={() => handleSort("category")}
+                        >
+                          Kategori{" "}
+                          {sortConfig.key === "category" &&
                             (sortConfig.direction === "asc" ? "↑" : "↓")}
                         </CTableHeaderCell>
                         <CTableHeaderCell
@@ -391,16 +418,23 @@ const Eoq = () => {
                             eoq.eoq,
                             eoq.orderFrequency
                           );
+                          const productId =
+                            eoq.productId ||
+                            eoq.product_id ||
+                            eoq.product?.id ||
+                            eoq.product?._id;
+                          const productName = getProductName(productId);
+                          const categoryName = getCategoryName(productId);
+
                           return (
                             <CTableRow key={eoq._id}>
                               <CTableDataCell>
-                                <div>
-                                  <strong>{eoq.product?.name || "N/A"}</strong>
-                                  <br />
-                                  <small className="text-muted">
-                                    SKU: {eoq.product?.sku || "N/A"}
-                                  </small>
-                                </div>
+                                <strong>{productName}</strong>
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <CBadge color="secondary" className="text-dark">
+                                  {categoryName}
+                                </CBadge>
                               </CTableDataCell>
                               <CTableDataCell>
                                 <strong className="text-primary">
@@ -429,45 +463,17 @@ const Eoq = () => {
                                 <small>{formatDate(eoq.lastCalculated)}</small>
                               </CTableDataCell>
                               <CTableDataCell>
-                                <CDropdown>
-                                  <CDropdownToggle
-                                    color="light"
-                                    size="sm"
-                                    caret={false}
-                                  >
-                                    <CIcon icon={cilOptions} />
-                                  </CDropdownToggle>
-                                  <CDropdownMenu>
-                                    <CDropdownItem
-                                      onClick={() => {
-                                        setSelectedEoq(eoq);
-                                        setShowDetailModal(true);
-                                      }}
-                                    >
-                                      <CIcon icon={cilInfo} className="me-2" />
-                                      Detail
-                                    </CDropdownItem>
-                                    <CDropdownItem
-                                      onClick={() => handleEdit(eoq)}
-                                    >
-                                      <CIcon
-                                        icon={cilPencil}
-                                        className="me-2"
-                                      />
-                                      Edit
-                                    </CDropdownItem>
-                                    <CDropdownItem
-                                      className="text-danger"
-                                      onClick={() => {
-                                        setSelectedEoq(eoq);
-                                        setShowDeleteModal(true);
-                                      }}
-                                    >
-                                      <CIcon icon={cilTrash} className="me-2" />
-                                      Hapus
-                                    </CDropdownItem>
-                                  </CDropdownMenu>
-                                </CDropdown>
+                                <CButton
+                                  color="info"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedEoq(eoq);
+                                    setShowDetailModal(true);
+                                  }}
+                                >
+                                  <CIcon icon={cilInfo} className="me-1" />
+                                </CButton>
                               </CTableDataCell>
                             </CTableRow>
                           );
@@ -475,7 +481,7 @@ const Eoq = () => {
                       ) : (
                         <CTableRow>
                           <CTableDataCell
-                            colSpan="7"
+                            colSpan="8"
                             className="text-center py-4"
                           >
                             <div className="text-muted">
@@ -548,7 +554,16 @@ const Eoq = () => {
         size="lg"
       >
         <CModalHeader>
-          <CModalTitle>Detail EOQ - {selectedEoq?.product?.name}</CModalTitle>
+          <CModalTitle>
+            Detail EOQ -{" "}
+            {selectedEoq &&
+              getProductName(
+                selectedEoq.productId ||
+                  selectedEoq.product_id ||
+                  selectedEoq.product?.id ||
+                  selectedEoq.product?._id
+              )}
+          </CModalTitle>
         </CModalHeader>
         <CModalBody>
           {selectedEoq && (
@@ -562,15 +577,12 @@ const Eoq = () => {
                         <strong>Nama Produk</strong>
                       </CTableDataCell>
                       <CTableDataCell>
-                        {selectedEoq.product?.name}
-                      </CTableDataCell>
-                    </CTableRow>
-                    <CTableRow>
-                      <CTableDataCell>
-                        <strong>SKU</strong>
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        {selectedEoq.product?.sku}
+                        {getProductName(
+                          selectedEoq.productId ||
+                            selectedEoq.product_id ||
+                            selectedEoq.product?.id ||
+                            selectedEoq.product?._id
+                        )}
                       </CTableDataCell>
                     </CTableRow>
                     <CTableRow>
@@ -578,7 +590,14 @@ const Eoq = () => {
                         <strong>Kategori</strong>
                       </CTableDataCell>
                       <CTableDataCell>
-                        {selectedEoq.product?.category?.name || "N/A"}
+                        <CBadge color="secondary" className="text-dark">
+                          {getCategoryName(
+                            selectedEoq.productId ||
+                              selectedEoq.product_id ||
+                              selectedEoq.product?.id ||
+                              selectedEoq.product?._id
+                          )}
+                        </CBadge>
                       </CTableDataCell>
                     </CTableRow>
                   </CTableBody>
@@ -689,132 +708,6 @@ const Eoq = () => {
         <CModalFooter>
           <CButton color="secondary" onClick={() => setShowDetailModal(false)}>
             Tutup
-          </CButton>
-        </CModalFooter>
-      </CModal>
-
-      {/* Edit Modal */}
-      <CModal visible={showEditModal} onClose={() => setShowEditModal(false)}>
-        <CModalHeader>
-          <CModalTitle>Edit EOQ - {selectedEoq?.product?.name}</CModalTitle>
-        </CModalHeader>
-        <CForm onSubmit={handleUpdate}>
-          <CModalBody>
-            <CRow className="mb-3">
-              <CCol>
-                <CFormLabel htmlFor="editOrderingCost">
-                  Biaya Pemesanan per Order (Rp) *
-                </CFormLabel>
-                <CFormInput
-                  type="number"
-                  id="editOrderingCost"
-                  value={editFormData.orderingCost}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      orderingCost: e.target.value,
-                    }))
-                  }
-                  min="0"
-                  step="0.01"
-                  required
-                />
-              </CCol>
-            </CRow>
-            <CRow className="mb-3">
-              <CCol>
-                <CFormLabel htmlFor="editHoldingCost">
-                  Biaya Penyimpanan per Unit per Tahun (Rp) *
-                </CFormLabel>
-                <CFormInput
-                  type="number"
-                  id="editHoldingCost"
-                  value={editFormData.holdingCost}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      holdingCost: e.target.value,
-                    }))
-                  }
-                  min="0"
-                  step="0.01"
-                  required
-                />
-              </CCol>
-            </CRow>
-            <CRow className="mb-3">
-              <CCol>
-                <CFormLabel htmlFor="editAnnualDemand">
-                  Permintaan Tahunan (Unit) *
-                </CFormLabel>
-                <CFormInput
-                  type="number"
-                  id="editAnnualDemand"
-                  value={editFormData.annualDemand}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      annualDemand: e.target.value,
-                    }))
-                  }
-                  min="0"
-                  step="1"
-                  required
-                />
-              </CCol>
-            </CRow>
-            <CAlert color="info">
-              <small>
-                <strong>Catatan:</strong> Setelah mengubah parameter, EOQ akan
-                dihitung ulang secara otomatis.
-              </small>
-            </CAlert>
-          </CModalBody>
-          <CModalFooter>
-            <CButton color="secondary" onClick={() => setShowEditModal(false)}>
-              Batal
-            </CButton>
-            <CButton type="submit" color="primary" disabled={updating}>
-              {updating ? (
-                <>
-                  <CSpinner size="sm" className="me-1" />
-                  Memperbarui...
-                </>
-              ) : (
-                <>
-                  <CIcon icon={cilCalculator} className="me-1" />
-                  Perbarui & Hitung Ulang
-                </>
-              )}
-            </CButton>
-          </CModalFooter>
-        </CForm>
-      </CModal>
-
-      {/* Delete Confirmation Modal */}
-      <CModal
-        visible={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-      >
-        <CModalHeader>
-          <CModalTitle>Konfirmasi Hapus</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          <p>
-            Apakah Anda yakin ingin menghapus data EOQ untuk produk{" "}
-            <strong>{selectedEoq?.product?.name}</strong>?
-          </p>
-          <CAlert color="warning">
-            <strong>Peringatan:</strong> Tindakan ini tidak dapat dibatalkan.
-          </CAlert>
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>
-            Batal
-          </CButton>
-          <CButton color="danger" onClick={handleDelete}>
-            <CIcon icon={cilTrash} className="me-1" />
-            Hapus
           </CButton>
         </CModalFooter>
       </CModal>

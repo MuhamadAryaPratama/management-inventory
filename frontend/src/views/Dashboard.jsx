@@ -121,7 +121,7 @@ const Dashboard = () => {
   };
 
   const handleViewProducts = () => {
-    navigate("/product-management");
+    navigate("/product-management/items");
   };
 
   const handleViewReports = () => {
@@ -129,7 +129,7 @@ const Dashboard = () => {
   };
 
   const handleViewTransactions = () => {
-    navigate("/transactions");
+    navigate("/inventory-transactions/history");
   };
 
   // Get summary statistics from reports

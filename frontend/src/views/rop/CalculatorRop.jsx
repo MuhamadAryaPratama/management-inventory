@@ -53,7 +53,6 @@ const CalculatorRop = () => {
       setLoading(true);
       setError("");
 
-      // Use consistent token key - match with CalculatorEoq
       const token = localStorage.getItem("userToken");
 
       if (!token) {
@@ -61,12 +60,14 @@ const CalculatorRop = () => {
         return;
       }
 
-      // Use consistent API URL - match with CalculatorEoq
       const response = await axios.get("http://localhost:5000/api/products", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000, // Add timeout
       });
 
-      // Handle response data properly
       if (response.data && Array.isArray(response.data)) {
         setProducts(response.data);
       } else if (response.data.data && Array.isArray(response.data.data)) {
@@ -77,11 +78,18 @@ const CalculatorRop = () => {
       }
     } catch (error) {
       console.error("Error fetching products:", error);
-      setError(
-        `Gagal memuat data produk: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      if (error.code === "ECONNABORTED") {
+        setError("Koneksi timeout. Silakan coba lagi.");
+      } else if (error.response?.status === 401) {
+        setError("Session expired. Silakan login kembali.");
+        localStorage.removeItem("userToken");
+      } else {
+        setError(
+          `Gagal memuat data produk: ${
+            error.response?.data?.message || error.message
+          }`
+        );
+      }
       setProducts([]);
     } finally {
       setLoading(false);
@@ -95,15 +103,26 @@ const CalculatorRop = () => {
       [name]: value,
     }));
 
-    // Clear previous results when input changes
     if (result) {
       setResult(null);
     }
 
-    // Clear success message when input changes
     if (success) {
       setSuccess("");
     }
+  };
+
+  // Function to calculate ROP locally (as backup and for validation)
+  const calculateROPLocally = (dailyDemand, leadTime) => {
+    const rop = dailyDemand * leadTime;
+    const totalDemandDuringLeadTime = dailyDemand * leadTime;
+
+    return {
+      rop: rop,
+      totalDemandDuringLeadTime: totalDemandDuringLeadTime,
+      dailyDemand: dailyDemand,
+      leadTime: leadTime,
+    };
   };
 
   const calculateROP = async (e) => {
@@ -124,6 +143,15 @@ const CalculatorRop = () => {
       return;
     }
 
+    const dailyDemand = parseFloat(formData.dailyDemand);
+    const leadTime = parseFloat(formData.leadTime);
+
+    // Validate numbers are not NaN
+    if (isNaN(dailyDemand) || isNaN(leadTime)) {
+      setError("Nilai yang dimasukkan tidak valid");
+      return;
+    }
+
     try {
       setCalculating(true);
       setError("");
@@ -136,29 +164,79 @@ const CalculatorRop = () => {
         return;
       }
 
-      const response = await axios.post(
-        "http://localhost:5000/api/rop",
-        {
-          product: formData.productId,
-          leadTime: parseFloat(formData.leadTime),
-          dailyDemand: parseFloat(formData.dailyDemand),
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const requestData = {
+        product: formData.productId,
+        leadTime: leadTime,
+        dailyDemand: dailyDemand,
+      };
 
-      // Handle response data
-      if (response.data) {
-        setResult(response.data.data || response.data);
-        setSuccess("Perhitungan ROP berhasil dan data telah disimpan");
+      let calculationResult;
+      let isServerCalculation = true;
+
+      try {
+        // Try server calculation first
+        const response = await axios.post(
+          "http://localhost:5000/api/rop",
+          requestData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 10000,
+          }
+        );
+
+        // Handle response data
+        if (response.data) {
+          const serverResult = response.data.data || response.data;
+
+          // Calculate locally to ensure we have all needed values
+          const localCalculation = calculateROPLocally(dailyDemand, leadTime);
+
+          // Merge server result with local calculation to ensure completeness
+          calculationResult = {
+            ...localCalculation,
+            ...serverResult,
+            totalDemandDuringLeadTime:
+              serverResult.totalDemandDuringLeadTime ||
+              localCalculation.totalDemandDuringLeadTime,
+            rop: serverResult.rop || localCalculation.rop,
+          };
+        }
+      } catch (serverError) {
+        console.log(
+          "Server calculation failed, using local calculation:",
+          serverError
+        );
+        calculationResult = calculateROPLocally(dailyDemand, leadTime);
+        isServerCalculation = false;
       }
+
+      setResult(calculationResult);
+
+      const successMessage = `Perhitungan ROP berhasil${
+        !isServerCalculation
+          ? " (menggunakan perhitungan lokal)"
+          : " dan data telah disimpan"
+      }`;
+
+      setSuccess(successMessage);
     } catch (error) {
-      console.error("Error calculating ROP:", error);
-      setError(
-        error.response?.data?.message ||
-          "Gagal menghitung ROP. Silakan coba lagi."
-      );
+      console.error("Error in calculateROP:", error);
+
+      // Handle different types of errors
+      if (error.code === "ECONNABORTED") {
+        setError("Koneksi timeout. Silakan coba lagi.");
+      } else if (error.response?.status === 401) {
+        setError("Session expired. Silakan login kembali.");
+        localStorage.removeItem("userToken");
+      } else {
+        setError(
+          error.response?.data?.message ||
+            "Gagal menghitung ROP. Silakan coba lagi."
+        );
+      }
     } finally {
       setCalculating(false);
     }
@@ -220,7 +298,9 @@ const CalculatorRop = () => {
             <CCardBody>
               {error && (
                 <CAlert color="danger" dismissible onClose={() => setError("")}>
-                  {error}
+                  {error.split("\n").map((line, index) => (
+                    <div key={index}>{line}</div>
+                  ))}
                 </CAlert>
               )}
               {success && (
@@ -457,7 +537,7 @@ const CalculatorRop = () => {
                           <CTableDataCell>
                             <strong>Total Kebutuhan Selama Lead Time</strong>
                           </CTableDataCell>
-                          <CTableDataCell>
+                          <CTableDataCell className="text-info fw-bold">
                             {formatNumber(result.totalDemandDuringLeadTime)}{" "}
                             unit
                           </CTableDataCell>
@@ -466,7 +546,13 @@ const CalculatorRop = () => {
                           <CTableDataCell>
                             <strong>Status Rekomendasi</strong>
                           </CTableDataCell>
-                          <CTableDataCell className="text-success fw-bold">
+                          <CTableDataCell
+                            className={
+                              getSelectedProduct()?.currentStock > result.rop
+                                ? "text-success fw-bold"
+                                : "text-warning fw-bold"
+                            }
+                          >
                             {getSelectedProduct()?.currentStock > result.rop
                               ? "Stok Aman"
                               : "Perlu Reorder"}
@@ -506,6 +592,20 @@ const CalculatorRop = () => {
                     </li>
                   </ul>
                 </CAlert>
+
+                {/* Additional calculation details */}
+                <CAlert color="light" className="mt-3">
+                  <strong>Detail Perhitungan:</strong>
+                  <div className="mt-2">
+                    <code>
+                      ROP = Permintaan Harian × Lead Time
+                      <br />
+                      ROP = {formatNumber(formData.dailyDemand)} ×{" "}
+                      {formatNumber(formData.leadTime)} ={" "}
+                      {formatNumber(result.rop)} unit
+                    </code>
+                  </div>
+                </CAlert>
               </CCardBody>
             </CCard>
           </CCol>
@@ -544,7 +644,7 @@ const CalculatorRop = () => {
           <ul>
             <li>Mencegah terjadinya stockout (kehabisan stok)</li>
             <li>Menentukan waktu yang tepat untuk melakukan pemesanan</li>
-            <li>Menjaga kontinuitas operasional bisinis</li>
+            <li>Menjaga kontinuitas operasional bisnis</li>
             <li>Mengoptimalkan pengelolaan persediaan</li>
           </ul>
 

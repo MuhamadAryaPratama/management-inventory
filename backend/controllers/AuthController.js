@@ -1,11 +1,24 @@
 import jwt from "jsonwebtoken";
 import User from "../models/UserModel.js";
 import bcrypt from "bcryptjs";
+import { logUserLogin, logUserLogout } from "./LogController.js";
 
 // Ensure we have fallback values if environment variables are not set
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_fallback";
 const REFRESH_TOKEN_SECRET =
   process.env.REFRESH_TOKEN_SECRET || "your_refresh_token_secret_fallback";
+
+// Helper function to get client IP address
+const getClientIP = (req) => {
+  return (
+    req.ip ||
+    req.connection.remoteAddress ||
+    req.socket.remoteAddress ||
+    (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+    req.headers["x-forwarded-for"]?.split(",")[0] ||
+    "Unknown"
+  );
+};
 
 // Generate access token - short lived (15 minutes - more reasonable than 3 minutes)
 export const generateAccessToken = (id) => {
@@ -83,6 +96,11 @@ export const login = async (req, res) => {
       user.lastLogin = Date.now();
       await user.save();
 
+      // Log the login activity
+      const clientIP = getClientIP(req);
+      const userAgent = req.headers["user-agent"] || "Unknown";
+      logUserLogin(user._id.toString(), user.name, clientIP, userAgent);
+
       // Set refresh token in HTTP-only cookie
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
@@ -122,6 +140,11 @@ export const logout = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    // Log the logout activity before clearing tokens
+    const clientIP = getClientIP(req);
+    const userAgent = req.headers["user-agent"] || "Unknown";
+    logUserLogout(user._id.toString(), user.name, clientIP, userAgent);
 
     // Clear refresh token in database
     user.refreshToken = null;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios"; // Added missing axios import
+import axios from "axios";
 import {
   CCard,
   CCardBody,
@@ -37,12 +37,12 @@ import {
 import CIcon from "@coreui/icons-react";
 import {
   cilStorage,
-  cilPencil,
-  cilTrash,
   cilPlus,
   cilSearch,
   cilFilter,
   cilReload,
+  cilInfo,
+  cilCalculator,
 } from "@coreui/icons";
 
 const Rop = () => {
@@ -50,8 +50,10 @@ const Rop = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [calculating, setCalculating] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [editingRop, setEditingRop] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedRopDetail, setSelectedRopDetail] = useState(null);
   const [alert, setAlert] = useState({ show: false, type: "", message: "" });
 
   // Form states
@@ -73,15 +75,33 @@ const Rop = () => {
   const fetchRopData = async () => {
     try {
       setLoading(true);
-      // Fixed: Use consistent token key and API endpoint
       const token = localStorage.getItem("userToken");
+
+      if (!token) {
+        showAlert("danger", "Token tidak ditemukan. Silakan login kembali.");
+        return;
+      }
+
       const response = await axios.get("http://localhost:5000/api/rop", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
-      setRopData(response.data.data || response.data || []);
+
+      // Handle different response structures
+      const data = response.data?.data || response.data || [];
+      setRopData(Array.isArray(data) ? data : []);
+
+      console.log("ROP Data fetched:", data); // Debug log
     } catch (error) {
       console.error("Error fetching ROP data:", error);
-      showAlert("danger", "Gagal memuat data ROP");
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.statusText ||
+        "Gagal memuat data ROP";
+      showAlert("danger", errorMessage);
+      setRopData([]);
     } finally {
       setLoading(false);
     }
@@ -89,16 +109,108 @@ const Rop = () => {
 
   const fetchProducts = async () => {
     try {
-      // Fixed: Use consistent token key and API endpoint
       const token = localStorage.getItem("userToken");
+
+      if (!token) {
+        showAlert("danger", "Token tidak ditemukan. Silakan login kembali.");
+        return;
+      }
+
       const response = await axios.get("http://localhost:5000/api/products", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
-      setProducts(response.data || []);
+
+      const data = response.data?.data || response.data || [];
+      setProducts(Array.isArray(data) ? data : []);
+
+      console.log("Products fetched:", data); // Debug log
     } catch (error) {
       console.error("Error fetching products:", error);
-      showAlert("danger", "Gagal memuat data produk");
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.statusText ||
+        "Gagal memuat data produk";
+      showAlert("danger", errorMessage);
+      setProducts([]);
     }
+  };
+
+  // Function to calculate/recalculate ROP
+  const calculateRop = async () => {
+    try {
+      setCalculating(true);
+      const token = localStorage.getItem("userToken");
+
+      if (!token) {
+        showAlert("danger", "Token tidak ditemukan. Silakan login kembali.");
+        return;
+      }
+
+      // If there's a separate calculate endpoint
+      const response = await axios.post(
+        "http://localhost:5000/api/rop/calculate",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      showAlert("success", "ROP berhasil dihitung ulang");
+      fetchRopData(); // Refresh data after calculation
+    } catch (error) {
+      console.error("Error calculating ROP:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.statusText ||
+        "Gagal menghitung ROP";
+      showAlert("danger", errorMessage);
+    } finally {
+      setCalculating(false);
+    }
+  };
+
+  // Helper function to get current stock consistently
+  const getCurrentStock = (product) => {
+    if (!product) return 0;
+    // Priority: currentStock > stock > 0
+    return product.currentStock !== undefined
+      ? product.currentStock
+      : product.stock || 0;
+  };
+
+  // Enhanced function to merge ROP data with latest product stock
+  const getMergedRopData = () => {
+    return ropData.map((rop) => {
+      // Find the corresponding product from products array to get latest stock
+      const currentProduct = products.find((p) => p._id === rop.product?._id);
+
+      if (currentProduct) {
+        return {
+          ...rop,
+          product: {
+            ...rop.product,
+            currentStock: getCurrentStock(currentProduct),
+            stock: getCurrentStock(currentProduct), // Keep both for compatibility
+          },
+        };
+      }
+
+      // If no matching product found, use existing data
+      return {
+        ...rop,
+        product: {
+          ...rop.product,
+          currentStock: getCurrentStock(rop.product),
+          stock: getCurrentStock(rop.product),
+        },
+      };
+    });
   };
 
   const showAlert = (type, message) => {
@@ -107,19 +219,15 @@ const Rop = () => {
   };
 
   const handleAddNew = () => {
-    setEditingRop(null);
     setSelectedProduct("");
     setLeadTime("");
     setDailyDemand("");
     setShowModal(true);
   };
 
-  const handleEdit = (rop) => {
-    setEditingRop(rop);
-    setSelectedProduct(rop.product._id);
-    setLeadTime(rop.leadTime.toString());
-    setDailyDemand(rop.dailyDemand.toString());
-    setShowModal(true);
+  const handleDetail = (rop) => {
+    setSelectedRopDetail(rop);
+    setShowDetailModal(true);
   };
 
   const handleSubmit = async (e) => {
@@ -147,38 +255,29 @@ const Rop = () => {
         dailyDemand: dailyDemandNum,
       };
 
-      // Fixed: Use axios consistently and proper URL
       const token = localStorage.getItem("userToken");
-      let response;
 
-      if (editingRop) {
-        // For update - but based on your backend, there's no PUT endpoint
-        // So we'll still use POST which will update if ROP exists
-        response = await axios.post("http://localhost:5000/api/rop", payload, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-      } else {
-        response = await axios.post("http://localhost:5000/api/rop", payload, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+      if (!token) {
+        showAlert("danger", "Token tidak ditemukan. Silakan login kembali.");
+        return;
       }
 
-      showAlert(
-        "success",
-        `Data ROP berhasil ${editingRop ? "diperbarui" : "ditambahkan"}`
-      );
+      // Create new ROP
+      await axios.post("http://localhost:5000/api/rop", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      showAlert("success", "Data ROP berhasil ditambahkan");
       setShowModal(false);
       fetchRopData();
     } catch (error) {
       console.error("Error saving ROP:", error);
       const errorMessage =
         error.response?.data?.message ||
+        error.response?.statusText ||
         "Terjadi kesalahan saat menyimpan data";
       showAlert("danger", errorMessage);
     } finally {
@@ -186,60 +285,35 @@ const Rop = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus data ROP ini?")) {
-      try {
-        // Note: Based on your backend routes, there's no DELETE endpoint for ROP
-        // You might need to add this endpoint to your backend
-        const token = localStorage.getItem("userToken");
-        await axios.delete(`http://localhost:5000/api/rop/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        showAlert("success", "Data ROP berhasil dihapus");
-        fetchRopData();
-      } catch (error) {
-        console.error("Error deleting ROP:", error);
-        showAlert(
-          "danger",
-          "Gagal menghapus data ROP. Endpoint mungkin belum tersedia."
-        );
-      }
-    }
-  };
-
-  const getProductName = (productId) => {
-    const product = products.find((p) => p._id === productId);
-    return product ? product.name : "Unknown Product";
-  };
-
   const getRopStatus = (rop, currentStock) => {
-    if (!currentStock && currentStock !== 0)
+    if (currentStock === undefined || currentStock === null || !rop.rop) {
       return { status: "unknown", label: "Unknown", color: "secondary" };
+    }
 
-    if (currentStock <= rop.rop) {
+    const ropValue = parseFloat(rop.rop) || 0;
+
+    if (currentStock <= ropValue) {
       return { status: "critical", label: "Perlu Reorder", color: "danger" };
-    } else if (currentStock <= rop.rop * 1.2) {
+    } else if (currentStock <= ropValue * 1.2) {
       return { status: "warning", label: "Hampir ROP", color: "warning" };
     } else {
       return { status: "safe", label: "Aman", color: "success" };
     }
   };
 
+  // Get merged data for display
+  const mergedRopData = getMergedRopData();
+
   // Filter and search logic
-  const filteredData = ropData.filter((rop) => {
-    const matchesSearch =
-      rop.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rop.product?.code?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredData = mergedRopData.filter((rop) => {
+    const matchesSearch = rop.product?.name
+      ?.toLowerCase()
+      .includes(searchTerm.toLowerCase());
 
     if (statusFilter === "all") return matchesSearch;
 
-    const status = getRopStatus(
-      rop,
-      rop.product?.currentStock || rop.product?.stock
-    );
+    const currentStock = getCurrentStock(rop.product);
+    const status = getRopStatus(rop, currentStock);
     return matchesSearch && status.status === statusFilter;
   });
 
@@ -261,6 +335,23 @@ const Rop = () => {
                   Data ROP Barang
                 </strong>
                 <div className="d-flex gap-2">
+                  <CButton
+                    color="success"
+                    onClick={calculateRop}
+                    disabled={calculating}
+                  >
+                    {calculating ? (
+                      <>
+                        <CSpinner size="sm" className="me-2" />
+                        Menghitung...
+                      </>
+                    ) : (
+                      <>
+                        <CIcon icon={cilCalculator} className="me-2" />
+                        Hitung ROP
+                      </>
+                    )}
+                  </CButton>
                   <CButton color="primary" onClick={handleAddNew}>
                     <CIcon icon={cilPlus} className="me-2" />
                     Tambah ROP
@@ -268,10 +359,23 @@ const Rop = () => {
                   <CButton
                     color="secondary"
                     variant="outline"
-                    onClick={fetchRopData}
+                    onClick={() => {
+                      fetchRopData();
+                      fetchProducts();
+                    }}
+                    disabled={loading}
                   >
-                    <CIcon icon={cilReload} className="me-2" />
-                    Refresh
+                    {loading ? (
+                      <>
+                        <CSpinner size="sm" className="me-2" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <CIcon icon={cilReload} className="me-2" />
+                        Refresh
+                      </>
+                    )}
                   </CButton>
                 </div>
               </div>
@@ -291,7 +395,7 @@ const Rop = () => {
                       <CIcon icon={cilSearch} />
                     </CInputGroupText>
                     <CFormInput
-                      placeholder="Cari produk..."
+                      placeholder="Cari nama produk..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -321,6 +425,13 @@ const Rop = () => {
                     </CDropdownMenu>
                   </CDropdown>
                 </CCol>
+                <CCol md={3}>
+                  <div className="text-end">
+                    <small className="text-muted">
+                      Total: {filteredData.length} data
+                    </small>
+                  </div>
+                </CCol>
               </CRow>
 
               {loading ? (
@@ -335,7 +446,6 @@ const Rop = () => {
                       <CTableRow>
                         <CTableHeaderCell>No</CTableHeaderCell>
                         <CTableHeaderCell>Produk</CTableHeaderCell>
-                        <CTableHeaderCell>Kode</CTableHeaderCell>
                         <CTableHeaderCell>Lead Time (Hari)</CTableHeaderCell>
                         <CTableHeaderCell>Daily Demand</CTableHeaderCell>
                         <CTableHeaderCell>ROP</CTableHeaderCell>
@@ -348,10 +458,7 @@ const Rop = () => {
                     <CTableBody>
                       {currentItems.length > 0 ? (
                         currentItems.map((rop, index) => {
-                          const currentStock =
-                            rop.product?.currentStock ||
-                            rop.product?.stock ||
-                            0;
+                          const currentStock = getCurrentStock(rop.product);
                           const status = getRopStatus(rop, currentStock);
                           return (
                             <CTableRow key={rop._id}>
@@ -362,19 +469,16 @@ const Rop = () => {
                                 {rop.product?.name || "N/A"}
                               </CTableDataCell>
                               <CTableDataCell>
-                                {rop.product?.code || "N/A"}
+                                {rop.leadTime || 0} hari
                               </CTableDataCell>
                               <CTableDataCell>
-                                {rop.leadTime} hari
+                                {rop.dailyDemand || 0} unit/hari
                               </CTableDataCell>
                               <CTableDataCell>
-                                {rop.dailyDemand} unit/hari
+                                <strong>{Math.ceil(rop.rop || 0)} unit</strong>
                               </CTableDataCell>
                               <CTableDataCell>
-                                <strong>{Math.ceil(rop.rop)} unit</strong>
-                              </CTableDataCell>
-                              <CTableDataCell>
-                                {currentStock} unit
+                                <strong>{currentStock} unit</strong>
                               </CTableDataCell>
                               <CTableDataCell>
                                 <CBadge color={status.color}>
@@ -382,37 +486,32 @@ const Rop = () => {
                                 </CBadge>
                               </CTableDataCell>
                               <CTableDataCell>
-                                {new Date(
-                                  rop.lastCalculated
-                                ).toLocaleDateString("id-ID")}
+                                {rop.lastCalculated
+                                  ? new Date(
+                                      rop.lastCalculated
+                                    ).toLocaleDateString("id-ID")
+                                  : "Belum dihitung"}
                               </CTableDataCell>
                               <CTableDataCell>
-                                <div className="d-flex gap-1">
-                                  <CButton
-                                    color="warning"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEdit(rop)}
-                                  >
-                                    <CIcon icon={cilPencil} />
-                                  </CButton>
-                                  <CButton
-                                    color="danger"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDelete(rop._id)}
-                                  >
-                                    <CIcon icon={cilTrash} />
-                                  </CButton>
-                                </div>
+                                <CButton
+                                  color="info"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDetail(rop)}
+                                  title="Lihat Detail"
+                                >
+                                  <CIcon icon={cilInfo} />
+                                </CButton>
                               </CTableDataCell>
                             </CTableRow>
                           );
                         })
                       ) : (
                         <CTableRow>
-                          <CTableDataCell colSpan="10" className="text-center">
-                            Tidak ada data ROP
+                          <CTableDataCell colSpan="9" className="text-center">
+                            {searchTerm || statusFilter !== "all"
+                              ? "Tidak ada data yang sesuai dengan filter"
+                              : "Tidak ada data ROP. Silakan tambah data ROP terlebih dahulu."}
                           </CTableDataCell>
                         </CTableRow>
                       )}
@@ -452,12 +551,10 @@ const Rop = () => {
         </CCol>
       </CRow>
 
-      {/* Add/Edit Modal */}
+      {/* Add Modal */}
       <CModal visible={showModal} onClose={() => setShowModal(false)} size="lg">
         <CModalHeader>
-          <CModalTitle>
-            {editingRop ? "Edit Data ROP" : "Tambah Data ROP"}
-          </CModalTitle>
+          <CModalTitle>Tambah Data ROP</CModalTitle>
         </CModalHeader>
         <CForm onSubmit={handleSubmit}>
           <CModalBody>
@@ -469,20 +566,14 @@ const Rop = () => {
                   value={selectedProduct}
                   onChange={(e) => setSelectedProduct(e.target.value)}
                   required
-                  disabled={editingRop !== null}
                 >
                   <option value="">Pilih Produk</option>
                   {products.map((product) => (
                     <option key={product._id} value={product._id}>
-                      {product.name} - {product.code}
+                      {product.name} (Stock: {getCurrentStock(product)})
                     </option>
                   ))}
                 </CFormSelect>
-                {editingRop && (
-                  <small className="text-muted">
-                    Produk tidak dapat diubah saat mengedit
-                  </small>
-                )}
               </CCol>
             </CRow>
 
@@ -552,14 +643,177 @@ const Rop = () => {
                   <CSpinner size="sm" className="me-2" />
                   Menyimpan...
                 </>
-              ) : editingRop ? (
-                "Update"
               ) : (
                 "Simpan"
               )}
             </CButton>
           </CModalFooter>
         </CForm>
+      </CModal>
+
+      {/* Detail Modal */}
+      <CModal
+        visible={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        size="lg"
+      >
+        <CModalHeader>
+          <CModalTitle>Detail Data ROP</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          {selectedRopDetail && (
+            <div>
+              <CCard className="mb-3">
+                <CCardHeader>
+                  <strong>Informasi Produk</strong>
+                </CCardHeader>
+                <CCardBody>
+                  <CRow>
+                    <CCol md={6}>
+                      <p>
+                        <strong>Nama Produk:</strong>
+                      </p>
+                      <p className="text-muted">
+                        {selectedRopDetail.product?.name || "N/A"}
+                      </p>
+                    </CCol>
+                    <CCol md={6}>
+                      <p>
+                        <strong>Stock Saat Ini:</strong>
+                      </p>
+                      <p className="text-muted">
+                        {getCurrentStock(selectedRopDetail.product)} unit
+                      </p>
+                    </CCol>
+                  </CRow>
+                </CCardBody>
+              </CCard>
+
+              <CCard className="mb-3">
+                <CCardHeader>
+                  <strong>Parameter ROP</strong>
+                </CCardHeader>
+                <CCardBody>
+                  <CRow>
+                    <CCol md={4}>
+                      <p>
+                        <strong>Lead Time:</strong>
+                      </p>
+                      <p className="text-muted">
+                        {selectedRopDetail.leadTime || 0} hari
+                      </p>
+                    </CCol>
+                    <CCol md={4}>
+                      <p>
+                        <strong>Daily Demand:</strong>
+                      </p>
+                      <p className="text-muted">
+                        {selectedRopDetail.dailyDemand || 0} unit/hari
+                      </p>
+                    </CCol>
+                    <CCol md={4}>
+                      <p>
+                        <strong>ROP:</strong>
+                      </p>
+                      <p className="text-muted">
+                        {Math.ceil(selectedRopDetail.rop || 0)} unit
+                      </p>
+                    </CCol>
+                  </CRow>
+                </CCardBody>
+              </CCard>
+
+              <CCard className="mb-3">
+                <CCardHeader>
+                  <strong>Status & Analisis</strong>
+                </CCardHeader>
+                <CCardBody>
+                  <CRow>
+                    <CCol md={6}>
+                      <p>
+                        <strong>Status Saat Ini:</strong>
+                      </p>
+                      <CBadge
+                        color={
+                          getRopStatus(
+                            selectedRopDetail,
+                            getCurrentStock(selectedRopDetail.product)
+                          ).color
+                        }
+                        className="mb-2"
+                      >
+                        {
+                          getRopStatus(
+                            selectedRopDetail,
+                            getCurrentStock(selectedRopDetail.product)
+                          ).label
+                        }
+                      </CBadge>
+                    </CCol>
+                    <CCol md={6}>
+                      <p>
+                        <strong>Terakhir Dihitung:</strong>
+                      </p>
+                      <p className="text-muted">
+                        {selectedRopDetail.lastCalculated
+                          ? new Date(
+                              selectedRopDetail.lastCalculated
+                            ).toLocaleDateString("id-ID", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Belum dihitung"}
+                      </p>
+                    </CCol>
+                  </CRow>
+                </CCardBody>
+              </CCard>
+
+              <CCard>
+                <CCardHeader>
+                  <strong>Perhitungan ROP</strong>
+                </CCardHeader>
+                <CCardBody>
+                  <CAlert color="info">
+                    <strong>Formula:</strong> ROP = Daily Demand × Lead Time
+                    <br />
+                    <strong>Perhitungan:</strong>{" "}
+                    {selectedRopDetail.dailyDemand || 0} ×{" "}
+                    {selectedRopDetail.leadTime || 0} ={" "}
+                    {Math.ceil(selectedRopDetail.rop || 0)} unit
+                    <br />
+                    <br />
+                    <strong>Interpretasi:</strong>
+                    <br />
+                    Ketika stock mencapai{" "}
+                    {Math.ceil(selectedRopDetail.rop || 0)} unit atau kurang,
+                    maka perlu dilakukan pemesanan ulang untuk menghindari
+                    kehabisan stock selama lead time.
+                  </CAlert>
+
+                  {getCurrentStock(selectedRopDetail.product) <=
+                    (selectedRopDetail.rop || 0) &&
+                    selectedRopDetail.rop > 0 && (
+                      <CAlert color="warning">
+                        <strong>Perhatian!</strong> Stock saat ini (
+                        {getCurrentStock(selectedRopDetail.product)} unit) sudah
+                        mencapai atau di bawah ROP. Disarankan untuk segera
+                        melakukan pemesanan ulang.
+                      </CAlert>
+                    )}
+                </CCardBody>
+              </CCard>
+            </div>
+          )}
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setShowDetailModal(false)}>
+            Tutup
+          </CButton>
+        </CModalFooter>
       </CModal>
     </>
   );

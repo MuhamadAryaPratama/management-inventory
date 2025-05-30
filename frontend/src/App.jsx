@@ -20,12 +20,12 @@ import Settings from "./pages/profile/Setting";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import OutgoingGoods from "./views/transaction/OutgoingGoods";
 import History from "./views/transaction/History";
-// Import EOQ components
 import CalculatorEoq from "./views/eoq/CalculatorEoq";
 import Eoq from "./views/eoq/Eoq";
 import CalculatorRop from "./views/rop/CalculatorRop";
 import Rop from "./views/rop/Rop";
 import User from "./views/users/User";
+import UserLog from "./views/log/UserLog";
 
 function App() {
   return (
@@ -80,6 +80,9 @@ function App() {
 
             {/* User Routes */}
             <Route path="/user-management/users" element={<User />} />
+
+            {/* Log Routes */}
+            <Route path="/logs/users" element={<UserLog />} />
           </Route>
         </Route>
 

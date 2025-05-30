@@ -21,8 +21,12 @@ import reportRoutes from "./routes/ReportRoute.js";
 import userRoutes from "./routes/UserRoute.js";
 import categoryRoutes from "./routes/CategoryRoute.js";
 import supplierRoutes from "./routes/SupplierRoute.js";
+import logRoutes from "./routes/LogRoute.js";
 
 const app = express();
+
+// Trust proxy - untuk mendapatkan IP address yang benar
+app.set("trust proxy", true);
 
 // Body parser
 app.use(express.json());
@@ -68,6 +72,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/suppliers", supplierRoutes);
+app.use("/api/logs", logRoutes);
 
 // Error middleware
 app.use((err, req, res, next) => {
