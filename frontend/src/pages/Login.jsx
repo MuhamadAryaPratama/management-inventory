@@ -82,17 +82,19 @@ const Login = () => {
       setTokenWithExpiry(data.token);
 
       // Store user data
-      localStorage.setItem(
-        "userData",
-        JSON.stringify({
-          _id: data._id,
-          name: data.name,
-          email: data.email,
-          role: data.role,
-          phone: data.phone,
-          address: data.address,
-        })
-      );
+      const userData = {
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        phone: data.phone,
+        address: data.address,
+      };
+
+      localStorage.setItem("userData", JSON.stringify(userData));
+
+      // Store role separately for easy access
+      localStorage.setItem("userRole", data.role);
 
       // Dispatch event to notify other components
       window.dispatchEvent(new Event("userLoggedIn"));
@@ -138,6 +140,7 @@ const Login = () => {
                         <CIcon icon={cilUser} />
                       </CInputGroupText>
                       <CFormInput
+                        type="email"
                         placeholder="Email"
                         autoComplete="email"
                         value={email}

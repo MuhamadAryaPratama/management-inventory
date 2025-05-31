@@ -1,7 +1,7 @@
 import React from "react";
 import CIcon from "@coreui/icons-react";
 import {
-  cilSpeedometer,
+  cilHome,
   cilPuzzle,
   cilTags,
   cilFactory,
@@ -23,13 +23,14 @@ import {
   cilStar,
 } from "@coreui/icons";
 import { CNavGroup, CNavItem, CNavTitle } from "@coreui/react";
+import { PERMISSIONS } from "../../hooks/useAuth";
 
 const Sidebar = [
   {
     component: CNavItem,
     name: "Dashboard",
     to: "/dashboard",
-    icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
+    icon: <CIcon icon={cilHome} customClassName="nav-icon" />,
   },
   {
     component: CNavTitle,
@@ -108,6 +109,7 @@ const Sidebar = [
     name: "EOQ",
     to: "/eoq",
     icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
+    roles: PERMISSIONS.EOQ_ACCESS,
     items: [
       {
         component: CNavItem,
@@ -128,6 +130,7 @@ const Sidebar = [
     name: "ROP",
     to: "/rop",
     icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
+    roles: PERMISSIONS.ROP_ACCESS,
     items: [
       {
         component: CNavItem,
@@ -162,6 +165,7 @@ const Sidebar = [
     name: "Laporan",
     to: "/reports",
     icon: <CIcon icon={cilChartPie} customClassName="nav-icon" />,
+    roles: PERMISSIONS.REPORT_ACCESS,
     items: [
       {
         component: CNavItem,
@@ -198,6 +202,7 @@ const Sidebar = [
     name: "Pengguna",
     to: "/user-management",
     icon: <CIcon icon={cilStar} customClassName="nav-icon" />,
+    roles: PERMISSIONS.USER_MANAGEMENT,
     items: [
       {
         component: CNavItem,
@@ -216,6 +221,7 @@ const Sidebar = [
     name: "Log",
     to: "/logs",
     icon: <CIcon icon={cilHistory} customClassName="nav-icon" />,
+    roles: PERMISSIONS.LOG_ACCESS,
     items: [
       {
         component: CNavItem,

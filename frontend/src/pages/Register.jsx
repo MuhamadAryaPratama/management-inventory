@@ -16,12 +16,14 @@ import {
   CSpinner,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
-import { cilLockLocked, cilUser } from "@coreui/icons";
+import { cilLockLocked, cilPhone, cilUser, cilHome } from "@coreui/icons";
 
 const Register = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    phone: "",
+    address: "",
     password: "",
     confirmPassword: "",
     role: "karyawan", // Default to karyawan as per UserModel
@@ -30,7 +32,8 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const { name, email, password, confirmPassword, role } = formData;
+  const { name, email, phone, address, password, confirmPassword, role } =
+    formData;
 
   const handleChange = (e) => {
     setFormData({
@@ -41,7 +44,14 @@ const Register = () => {
 
   const validateForm = () => {
     // Check required fields
-    if (!name || !email || !password || !confirmPassword) {
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !address ||
+      !password ||
+      !confirmPassword
+    ) {
       setError("Semua field harus diisi");
       return false;
     }
@@ -92,6 +102,8 @@ const Register = () => {
         body: JSON.stringify({
           name,
           email,
+          phone,
+          address,
           password,
           role,
         }),
@@ -165,6 +177,36 @@ const Register = () => {
                       placeholder="Email"
                       autoComplete="email"
                       value={email}
+                      onChange={handleChange}
+                      required
+                    />
+                  </CInputGroup>
+
+                  <CInputGroup className="mb-3">
+                    <CInputGroupText>
+                      <CIcon icon={cilPhone} />
+                    </CInputGroupText>
+                    <CFormInput
+                      type="phone"
+                      name="phone"
+                      placeholder="Phone"
+                      autoComplete="phone"
+                      value={phone}
+                      onChange={handleChange}
+                      required
+                    />
+                  </CInputGroup>
+
+                  <CInputGroup className="mb-3">
+                    <CInputGroupText>
+                      <CIcon icon={cilHome} />
+                    </CInputGroupText>
+                    <CFormInput
+                      type="address"
+                      name="address"
+                      placeholder="Address"
+                      autoComplete="address"
+                      value={address}
                       onChange={handleChange}
                       required
                     />

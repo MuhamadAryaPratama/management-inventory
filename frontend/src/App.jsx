@@ -18,6 +18,7 @@ import Register from "./pages/Register";
 import Profile from "./pages/profile/Profile";
 import Settings from "./pages/profile/Setting";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import RoleBasedRoute from "./components/auth/RoleBasedRoute";
 import OutgoingGoods from "./views/transaction/OutgoingGoods";
 import History from "./views/transaction/History";
 import CalculatorEoq from "./views/eoq/CalculatorEoq";
@@ -71,18 +72,60 @@ function App() {
             />
 
             {/* EOQ Routes */}
-            <Route path="/eoq/calculator" element={<CalculatorEoq />} />
-            <Route path="/eoq/data" element={<Eoq />} />
+            <Route
+              path="/eoq/calculator"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <CalculatorEoq />
+                </RoleBasedRoute>
+              }
+            />
+            <Route
+              path="/eoq/data"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <Eoq />
+                </RoleBasedRoute>
+              }
+            />
 
-            {/* ROP Routes */}
-            <Route path="/rop/calculator" element={<CalculatorRop />} />
-            <Route path="/rop/data" element={<Rop />} />
+            {/* ROP Routes - With Role-Based Access Control */}
+            <Route
+              path="/rop/calculator"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <CalculatorRop />
+                </RoleBasedRoute>
+              }
+            />
+            <Route
+              path="/rop/data"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <Rop />
+                </RoleBasedRoute>
+              }
+            />
 
-            {/* User Routes */}
-            <Route path="/user-management/users" element={<User />} />
+            {/* User Routes - Typically admin only */}
+            <Route
+              path="/user-management/users"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <User />
+                </RoleBasedRoute>
+              }
+            />
 
-            {/* Log Routes */}
-            <Route path="/logs/users" element={<UserLog />} />
+            {/* Log Routes - Admin and Manager access */}
+            <Route
+              path="/logs/users"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <UserLog />
+                </RoleBasedRoute>
+              }
+            />
           </Route>
         </Route>
 
