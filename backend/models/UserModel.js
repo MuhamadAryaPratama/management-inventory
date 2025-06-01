@@ -40,6 +40,15 @@ const User = new mongoose.Schema({
   lastLogin: {
     type: Date,
   },
+  // ADD THESE MISSING FIELDS FOR PASSWORD RESET
+  passwordResetCode: {
+    type: String,
+    default: null,
+  },
+  passwordResetExpires: {
+    type: Date,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

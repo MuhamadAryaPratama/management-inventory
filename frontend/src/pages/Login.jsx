@@ -83,18 +83,18 @@ const Login = () => {
 
       // Store user data
       const userData = {
-        _id: data._id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        phone: data.phone,
-        address: data.address,
+        _id: data.user._id,
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role,
+        phone: data.user.phone,
+        address: data.user.address,
       };
 
       localStorage.setItem("userData", JSON.stringify(userData));
 
       // Store role separately for easy access
-      localStorage.setItem("userRole", data.role);
+      localStorage.setItem("userRole", data.user.role);
 
       // Dispatch event to notify other components
       window.dispatchEvent(new Event("userLoggedIn"));
@@ -207,9 +207,11 @@ const Login = () => {
                         </CButton>
                       </CCol>
                       <CCol xs={6} className="text-right">
-                        <CButton color="link" className="px-0">
-                          Forgot password?
-                        </CButton>
+                        <Link to="/forgot-password">
+                          <CButton color="link" className="px-0">
+                            Forgot password?
+                          </CButton>
+                        </Link>
                       </CCol>
                     </CRow>
                   </CForm>

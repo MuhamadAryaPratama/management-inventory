@@ -15,6 +15,9 @@ import Category from "./views/category/Category";
 import Supplier from "./views/supplier/Supplier";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ValidateResetCode from "./pages/ValidateResetCode";
+import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/profile/Profile";
 import Settings from "./pages/profile/Setting";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -27,6 +30,7 @@ import CalculatorRop from "./views/rop/CalculatorRop";
 import Rop from "./views/rop/Rop";
 import User from "./views/users/User";
 import UserLog from "./views/log/UserLog";
+import EditProduct from "./views/products/EditProduct";
 
 function App() {
   return (
@@ -35,6 +39,9 @@ function App() {
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/validate-reset-code" element={<ValidateResetCode />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
@@ -43,8 +50,13 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
 
             {/* Product Management Routes */}
+            <Route path="/product-management" element={<Product />} />
             <Route path="/product-management/items" element={<Product />} />
             <Route path="/product-management/add" element={<AddProduct />} />
+            <Route
+              path="/product-management/edit/:id"
+              element={<EditProduct />}
+            />
             <Route
               path="/product-management/categories"
               element={<Category />}
