@@ -1,4 +1,3 @@
-// File: models/UserLogModel.js
 import mongoose from "mongoose";
 
 const userLogSchema = new mongoose.Schema(
@@ -25,7 +24,7 @@ const userLogSchema = new mongoose.Schema(
       default: null,
     },
     duration: {
-      type: Number, // in milliseconds
+      type: Number,
       default: null,
     },
     status: {

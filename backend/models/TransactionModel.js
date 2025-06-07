@@ -8,7 +8,7 @@ const Transaction = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ["pembelian", "penjualan"], // pembelian = stock in, penjualan = stock out
+    enum: ["pembelian", "penjualan"],
     required: [true, "Transaction type is required"],
   },
   quantity: {
@@ -20,7 +20,7 @@ const Transaction = new mongoose.Schema({
     type: Number,
     min: [0, "Price cannot be negative"],
     required: function () {
-      return this.type === "penjualan"; // Price required only for sales
+      return this.type === "penjualan";
     },
   },
   total: {

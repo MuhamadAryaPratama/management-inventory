@@ -34,6 +34,7 @@ import EditProduct from "./views/products/EditProduct";
 import StockReport from "./views/report/StockReport";
 import TransactionReport from "./views/report/TransactionReport";
 import RopEoqReport from "./views/report/RopEoqReport";
+import ProductLog from "./views/log/ProductLog";
 
 function App() {
   return (
@@ -164,6 +165,14 @@ function App() {
               element={
                 <RoleBasedRoute allowedRoles={["pemilik"]}>
                   <UserLog />
+                </RoleBasedRoute>
+              }
+            />
+            <Route
+              path="/logs/items"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <ProductLog />
                 </RoleBasedRoute>
               }
             />

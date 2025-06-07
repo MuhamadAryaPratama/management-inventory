@@ -130,6 +130,9 @@ export const createProduct = asyncHandler(async (req, res) => {
       req.body.createdBy = req.user.id;
     }
 
+    // Set creation timestamp
+    req.body.createdAt = new Date();
+
     // Handle category - find existing or create new
     if (req.body.category) {
       req.body.category = await findOrCreateCategory(req.body.category);
@@ -284,11 +287,11 @@ export const updateProduct = asyncHandler(async (req, res) => {
       req.body.supplier = await findOrCreateSupplier(req.body.supplier);
     }
 
-    // Add updater information
+    // Add updater information and timestamp
     if (req.user && req.user.id) {
       req.body.updatedBy = req.user.id;
     }
-    req.body.updatedAt = Date.now();
+    req.body.updatedAt = new Date();
 
     // Handle file upload if there's a file
     if (req.files && req.files.image) {

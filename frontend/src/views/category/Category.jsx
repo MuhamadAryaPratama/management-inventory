@@ -61,7 +61,7 @@ const Category = () => {
 
   // Initialize with sample data
   useEffect(() => {
-    console.log("Category component mounted");
+    // console.log("Category component mounted");
     // Then try to fetch from API
     fetchCategories();
   }, []);

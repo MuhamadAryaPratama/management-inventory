@@ -2,8 +2,7 @@ import express from "express";
 import morgan from "morgan";
 import errorHandler from "errorhandler";
 import cors from "cors";
-import cookieParser from "cookie-parser"; // Add this import
-import fileUpload from "express-fileupload";
+import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -30,21 +29,8 @@ app.set("trust proxy", true);
 // Body parser
 app.use(express.json());
 
-// Cookie parser - Add this BEFORE routes
+// Cookie parser
 app.use(cookieParser());
-
-// Setup express-fileupload
-app.use(
-  fileUpload({
-    limits: { fileSize: 5 * 1024 * 1024 },
-    createParentPath: true,
-    useTempFiles: true,
-    tempFileDir: "/tmp/",
-  })
-);
-
-// Serve static files
-app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 // Dev logging middleware
 if (process.env.NODE_ENV === "development") {
