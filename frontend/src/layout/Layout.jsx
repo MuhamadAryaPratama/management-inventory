@@ -3,7 +3,6 @@ import {
   CSidebar,
   CSidebarNav,
   CSidebarBrand,
-  CSidebarToggler,
   CContainer,
   CHeader,
   CHeaderNav,
@@ -44,15 +43,6 @@ const Layout = () => {
         <div
           className="sidebar-overlay"
           onClick={() => setSidebarShow(false)}
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: 0, // Changed from "250px" to 0 to cover entire screen
-            zIndex: 1025,
-            backgroundColor: "rgba(0,0,0,0.3)",
-          }}
         />
       )}
 
@@ -64,10 +54,6 @@ const Layout = () => {
           setSidebarShow(visible);
         }}
         className={sidebarShow && isMobile ? "c-sidebar-show" : ""}
-        style={{
-          zIndex: 1030, // Ensure sidebar is above overlay
-          width: "250px", // Explicit width for sidebar
-        }}
       >
         <CSidebarBrand className="d-none d-md-flex" to="/">
           <div className="sidebar-brand-full">Inventory System</div>
@@ -76,10 +62,6 @@ const Layout = () => {
         <CSidebarNav>
           <SidebarContent />
         </CSidebarNav>
-        <CSidebarToggler
-          className="d-none d-lg-flex"
-          onClick={() => setSidebarShow(!sidebarShow)}
-        />
       </CSidebar>
 
       {/* Main content area */}
@@ -88,7 +70,7 @@ const Layout = () => {
         style={{
           marginLeft: sidebarShow && !isMobile ? "250px" : "0",
           transition: "margin-left 0.3s",
-          width: "100%", // Ensure content area takes full width
+          width: "100%",
         }}
       >
         {/* Header with hamburger menu */}

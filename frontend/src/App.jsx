@@ -31,6 +31,9 @@ import Rop from "./views/rop/Rop";
 import User from "./views/users/User";
 import UserLog from "./views/log/UserLog";
 import EditProduct from "./views/products/EditProduct";
+import StockReport from "./views/report/StockReport";
+import TransactionReport from "./views/report/TransactionReport";
+import RopEoqReport from "./views/report/RopEoqReport";
 
 function App() {
   return (
@@ -129,7 +132,33 @@ function App() {
               }
             />
 
-            {/* Log Routes - Admin and Manager access */}
+            {/* Report Routes - Admin access */}
+            <Route
+              path="/reports/stock"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <StockReport />
+                </RoleBasedRoute>
+              }
+            />
+            <Route
+              path="/reports/transactions"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <TransactionReport />
+                </RoleBasedRoute>
+              }
+            />
+            <Route
+              path="/reports/eoq-rop"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <RopEoqReport />
+                </RoleBasedRoute>
+              }
+            />
+
+            {/* Log Routes - Admin access */}
             <Route
               path="/logs/users"
               element={

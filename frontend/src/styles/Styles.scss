@@ -19,7 +19,7 @@ body {
   }
 }
 
-// Sidebar styles
+/* Sidebar styles - Fixed scrolling behavior */
 .sidebar {
   height: 100vh;
   position: fixed;
@@ -28,15 +28,23 @@ body {
   width: 250px;
   display: flex;
   flex-direction: column;
+  background: #fff;
+  border-right: 1px solid #d8dbe0;
+  /* Ensure touch events work properly */
+  touch-action: manipulation;
 
   @media (max-width: 991px) {
     transform: translateX(-100%);
+    /* Ensure sidebar is above overlay when shown */
+    z-index: 1035;
 
     &.c-sidebar-show {
       transform: translateX(0);
     }
   }
 
+  /* Brand/Logo area - Fixed at top */
+  .sidebar-brand,
   .sidebar-brand-full {
     font-size: 1.25rem;
     font-weight: bold;
@@ -44,31 +52,115 @@ body {
     height: 56px;
     display: flex;
     align-items: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+    background: #fff;
+    border-bottom: 1px solid #d8dbe0;
+    /* Improve touch target */
+    min-height: 44px;
   }
 
   .sidebar-brand-narrow {
     display: none;
   }
 
-  .sidebar-toggler {
-    margin-top: auto;
-  }
-
-  .simplebar-content-wrapper {
-    overflow: auto;
-  }
-
-  .simplebar-track.simplebar-vertical {
-    width: 8px;
-  }
-
-  .nav-group-items {
-    max-height: 500px;
+  /* Navigation container - Full height without bottom space */
+  .sidebar-nav,
+  .c-sidebar-nav {
+    flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
+    height: calc(100vh - 56px); /* Removed bottom space calculation */
+    padding: 0;
+    margin: 0;
+    /* Enable momentum scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+
+    /* Hide scrollbar but keep functionality */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+
+    &::-webkit-scrollbar {
+      display: none; /* WebKit */
+    }
+  }
+
+  /* Remove any conflicting overflow settings */
+  .simplebar-content-wrapper,
+  .simplebar-content {
+    overflow: visible !important;
+  }
+
+  .simplebar-track {
+    display: none !important;
+  }
+
+  /* Navigation items styling */
+  .nav-item,
+  .c-sidebar-nav-item {
+    margin: 0;
+
+    .nav-link,
+    .c-sidebar-nav-link {
+      padding: 0.75rem 1rem;
+      border: none;
+      color: #5c6873;
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      transition: all 0.15s ease-in-out;
+      /* Improve touch targets for mobile */
+      min-height: 44px;
+      /* Ensure links are clickable */
+      pointer-events: auto;
+      /* Prevent text selection on touch */
+      user-select: none;
+      -webkit-user-select: none;
+      /* Improve touch response */
+      -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+
+      &:hover,
+      &:focus {
+        background-color: #f8f9fa;
+        color: #321fdb;
+      }
+
+      &:active {
+        background-color: #e9ecef;
+      }
+
+      &.active {
+        background-color: #321fdb;
+        color: #fff;
+      }
+
+      .nav-icon {
+        margin-right: 0.5rem;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+    }
+  }
+
+  /* Group items */
+  .nav-group-items,
+  .c-sidebar-nav-group-items {
+    overflow: visible;
+    max-height: none;
+
+    .nav-item {
+      padding-left: 0;
+
+      .nav-link {
+        padding-left: 2rem;
+      }
+    }
   }
 }
 
-// Header styles
+/* Header styles */
 .header {
   position: relative;
   display: flex;
@@ -77,6 +169,8 @@ body {
   justify-content: space-between;
   min-height: 4rem;
   z-index: 1020;
+  background: #fff;
+  border-bottom: 1px solid #d8dbe0;
 
   &-toggler {
     cursor: pointer;
@@ -84,6 +178,25 @@ body {
     border: 0;
     padding: 0.5rem;
     margin-right: 0.5rem;
+    /* Improve touch target */
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Ensure it's clickable */
+    pointer-events: auto;
+    /* Improve touch response */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+
+    &:hover,
+    &:focus {
+      background-color: #f8f9fa;
+    }
+
+    &:active {
+      background-color: #e9ecef;
+    }
   }
 
   &-nav {
@@ -94,29 +207,14 @@ body {
   }
 }
 
-// Footer styles
-.footer {
-  min-height: 3rem;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-top: auto;
-}
-
-// Fix for CoreUI specific items
+/* Fix for CoreUI specific items */
 .header.navbar,
-.sidebar-nav,
-.sidebar-toggler {
+.sidebar-nav {
   --cui-sidebar-nav-group-items-padding-x: 1rem;
   --cui-sidebar-nav-link-padding-x: 1rem;
 }
 
-// Fix for active items in sidebar
-.nav-group-items .nav-item {
-  padding-left: 1rem;
-}
-
-// For avatar in header dropdown
+/* For avatar in header dropdown */
 .avatar {
   display: inline-flex;
   align-items: center;
@@ -125,17 +223,38 @@ body {
   width: 40px;
   height: 40px;
   font-weight: 600;
+  /* Improve touch target */
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
 }
 
-// Fix for dropdown items
+/* Fix for dropdown items */
 .dropdown-menu {
   padding: 0.5rem 0;
+  /* Ensure dropdown is above other elements */
+  z-index: 1040;
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
   padding: 0.5rem 1rem;
+  /* Improve touch targets */
+  min-height: 44px;
+  /* Ensure items are clickable */
+  pointer-events: auto;
+  /* Improve touch response */
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+
+  &:hover,
+  &:focus {
+    background-color: #f8f9fa;
+  }
+
+  &:active {
+    background-color: #e9ecef;
+  }
 }
 
 .dropdown-header {
@@ -147,35 +266,134 @@ body {
   white-space: nowrap;
 }
 
-// Added for mobile sidebar overlay
+/* Mobile sidebar overlay */
 .sidebar-overlay {
   display: none;
 
   @media (max-width: 991px) {
     display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1025;
+    /* Ensure overlay is clickable to close sidebar */
+    pointer-events: auto;
+    cursor: pointer;
+    /* Improve touch response */
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
-// Fix for sidebar appearance in mobile
+/* Fix for sidebar appearance in mobile */
 @media (max-width: 991px) {
   .c-sidebar-show {
     transform: translateX(0) !important;
   }
+
+  /* Ensure content is not clickable when sidebar is open */
+  .sidebar-show .wrapper {
+    pointer-events: none;
+  }
+
+  /* But allow sidebar content to be clickable */
+  .sidebar-show .sidebar {
+    pointer-events: auto;
+  }
+
+  /* Improve touch targets on mobile */
+  .nav-link,
+  .c-sidebar-nav-link,
+  .dropdown-item,
+  .header-toggler {
+    min-height: 48px;
+  }
 }
 
-// Add compact menu styles
-.c-sidebar-nav {
-  overflow-y: auto;
-  flex: 1;
+/* Ensure proper text handling */
+.c-sidebar-nav-link,
+.c-sidebar-nav-title,
+.nav-link {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.c-sidebar-nav-item,
-.c-sidebar-nav-title {
-  margin-bottom: 0.25rem;
+/* Remove any default margins and paddings that might cause issues */
+.c-sidebar-nav,
+.sidebar-nav {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
 }
 
-// Limit height of expanded nav groups to enable scrolling within groups
-.c-sidebar-nav-group.show .c-sidebar-nav-group-items {
-  max-height: 300px;
-  overflow-y: auto;
+/* Fix for navigation groups */
+.c-sidebar-nav-group,
+.nav-group {
+  .c-sidebar-nav-group-toggle,
+  .nav-group-toggle {
+    cursor: pointer;
+    /* Improve touch target */
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    /* Ensure it's clickable */
+    pointer-events: auto;
+    /* Improve touch response */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+
+    &:hover,
+    &:focus {
+      background-color: #f8f9fa;
+    }
+
+    &:active {
+      background-color: #e9ecef;
+    }
+  }
+
+  &.show {
+    .c-sidebar-nav-group-items,
+    .nav-group-items {
+      display: block;
+    }
+  }
+}
+
+/* Additional mobile improvements */
+@media (max-width: 991px) {
+  /* Prevent zoom on input focus */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Improve button touch targets */
+  button,
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Ensure proper spacing for touch */
+  .nav-item + .nav-item {
+    margin-top: 1px;
+  }
+}
+
+/* Fix for iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  .sidebar {
+    /* Fix for iOS Safari scrolling */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar-nav,
+  .c-sidebar-nav {
+    /* Improve scrolling performance on iOS */
+    transform: translateZ(0);
+  }
 }

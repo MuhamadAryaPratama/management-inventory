@@ -37,38 +37,14 @@ const SidebarContent = () => {
             <NavLink
               to={item.to}
               className="nav-link"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "0.75rem 1rem",
-                textDecoration: "none",
-                color: "inherit",
-                minHeight: "44px", // Minimum touch target size for mobile
-                touchAction: "manipulation", // Optimize for touch
-                WebkitTapHighlightColor: "transparent", // Remove tap highlight on iOS
-              }}
               onClick={(e) => {
-                // Ensure click event propagates properly on mobile
                 e.stopPropagation();
               }}
             >
-              {item.icon && (
-                <span
-                  className="nav-icon"
-                  style={{
-                    marginRight: "0.5rem",
-                    pointerEvents: "none", // Prevent icon from blocking clicks
-                  }}
-                >
-                  {item.icon}
-                </span>
-              )}
-              <span style={{ pointerEvents: "none" }}>{item.name}</span>
+              {item.icon && <span className="nav-icon">{item.icon}</span>}
+              <span>{item.name}</span>
               {item.badge && (
-                <span
-                  className={`badge ms-auto badge-${item.badge.color}`}
-                  style={{ pointerEvents: "none" }}
-                >
+                <span className={`badge ms-auto badge-${item.badge.color}`}>
                   {item.badge.text}
                 </span>
               )}
@@ -81,22 +57,8 @@ const SidebarContent = () => {
   };
 
   return (
-    <SimpleBar
-      style={{
-        // Ensure SimpleBar doesn't interfere with touch events
-        touchAction: "pan-y",
-        overscrollBehavior: "contain",
-      }}
-    >
-      <CSidebarNav
-        style={{
-          // Ensure proper touch handling on mobile
-          touchAction: "manipulation",
-          WebkitOverflowScrolling: "touch",
-        }}
-      >
-        {renderSidebarItems(Sidebar)}
-      </CSidebarNav>
+    <SimpleBar>
+      <CSidebarNav>{renderSidebarItems(Sidebar)}</CSidebarNav>
     </SimpleBar>
   );
 };

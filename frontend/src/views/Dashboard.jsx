@@ -298,6 +298,27 @@ const Dashboard = () => {
     };
   };
 
+  // Helper functions to safely extract string values from objects
+  const getProductName = (product) => {
+    if (!product) return "N/A";
+    if (typeof product === "string") return product;
+    if (typeof product === "object" && product.name) return product.name;
+    return "N/A";
+  };
+
+  const getProductCode = (product) => {
+    if (!product) return "";
+    if (typeof product === "object" && product.code) return product.code;
+    return "";
+  };
+
+  const getCategoryName = (category) => {
+    if (!category) return "-";
+    if (typeof category === "string") return category;
+    if (typeof category === "object" && category.name) return category.name;
+    return "-";
+  };
+
   // Fetch dashboard data
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -803,8 +824,9 @@ const Dashboard = () => {
                                               </CBadge>
                                               <div>
                                                 <div className="fw-bold">
-                                                  {transaction.product?.name ||
-                                                    "N/A"}
+                                                  {getProductName(
+                                                    transaction.product
+                                                  )}
                                                 </div>
                                                 <small className="text-muted">
                                                   Qty: {transaction.quantity} |{" "}
@@ -945,14 +967,14 @@ const Dashboard = () => {
                                   ),
                                   {
                                     className: `text-${getTrendColor(
-                                      -dashboardData.trends.lowStockTrend
+                                      dashboardData.trends.lowStockTrend
                                     )} me-1`,
                                     size: 16,
                                   }
                                 )}
                                 <CBadge
                                   color={getTrendColor(
-                                    -dashboardData.trends.lowStockTrend
+                                    dashboardData.trends.lowStockTrend
                                   )}
                                 >
                                   {dashboardData.trends.lowStockTrend > 0
@@ -978,118 +1000,114 @@ const Dashboard = () => {
                               <p className="text-medium-emphasis mb-1">
                                 Out of Stock
                               </p>
-                              <CBadge color="secondary">No trend data</CBadge>
+                              <CButton
+                                color="primary"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate("/products")}
+                              >
+                                Manage Stock
+                              </CButton>
                             </CCardBody>
                           </CCard>
                         </CCol>
                       </CRow>
 
-                      {/* Product List */}
-                      <CRow>
-                        <CCol xs={12}>
-                          <CCard>
-                            <CCardHeader>
-                              <div className="d-flex justify-content-between align-items-center">
-                                <h6>Product Inventory</h6>
-                                <CButton
-                                  color="primary"
-                                  size="sm"
-                                  onClick={() => navigate("/products")}
-                                >
-                                  <Plus size={16} className="me-1" />
-                                  Manage Products
-                                </CButton>
-                              </div>
-                            </CCardHeader>
-                            <CCardBody>
-                              <CTable striped hover responsive>
-                                <CTableHead>
-                                  <CTableRow>
-                                    <CTableHeaderCell>Product</CTableHeaderCell>
-                                    <CTableHeaderCell>
-                                      Category
-                                    </CTableHeaderCell>
-                                    <CTableHeaderCell className="text-end">
-                                      Current Stock
-                                    </CTableHeaderCell>
-                                    <CTableHeaderCell className="text-end">
-                                      Price
-                                    </CTableHeaderCell>
-                                    <CTableHeaderCell>Status</CTableHeaderCell>
-                                  </CTableRow>
-                                </CTableHead>
-                                <CTableBody>
-                                  {dashboardData.currentProducts.length ===
-                                  0 ? (
-                                    <CTableRow>
-                                      <CTableDataCell
-                                        colSpan={5}
-                                        className="text-center"
+                      {/* Product List Table */}
+                      <CCard className="mb-4">
+                        <CCardHeader>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <h6>Product Inventory</h6>
+                            <div>
+                              <CButton
+                                color="primary"
+                                size="sm"
+                                onClick={() => navigate("/products/add")}
+                              >
+                                <Plus size={16} className="me-1" />
+                                Add Product
+                              </CButton>
+                            </div>
+                          </div>
+                        </CCardHeader>
+                        <CCardBody>
+                          <CTable striped hover responsive>
+                            <CTableHead>
+                              <CTableRow>
+                                <CTableHeaderCell>Product</CTableHeaderCell>
+                                <CTableHeaderCell>Category</CTableHeaderCell>
+                                <CTableHeaderCell className="text-center">
+                                  Stock
+                                </CTableHeaderCell>
+                                <CTableHeaderCell className="text-center">
+                                  Status
+                                </CTableHeaderCell>
+                                <CTableHeaderCell className="text-end">
+                                  Actions
+                                </CTableHeaderCell>
+                              </CTableRow>
+                            </CTableHead>
+                            <CTableBody>
+                              {dashboardData.currentProducts.length === 0 ? (
+                                <CTableRow>
+                                  <CTableDataCell
+                                    colSpan="5"
+                                    className="text-center"
+                                  >
+                                    No products found
+                                  </CTableDataCell>
+                                </CTableRow>
+                              ) : (
+                                dashboardData.currentProducts.map((product) => (
+                                  <CTableRow key={product._id}>
+                                    <CTableDataCell>
+                                      <div className="fw-bold">
+                                        {product.name}
+                                      </div>
+                                      <small className="text-muted">
+                                        {product.code}
+                                      </small>
+                                    </CTableDataCell>
+                                    <CTableDataCell>
+                                      {getCategoryName(product.category)}
+                                    </CTableDataCell>
+                                    <CTableDataCell className="text-center">
+                                      {product.currentStock || 0}
+                                    </CTableDataCell>
+                                    <CTableDataCell className="text-center">
+                                      {product.currentStock <= 0 ? (
+                                        <CBadge color="danger">
+                                          Out of Stock
+                                        </CBadge>
+                                      ) : product.currentStock < 10 ? (
+                                        <CBadge color="warning">
+                                          Low Stock
+                                        </CBadge>
+                                      ) : (
+                                        <CBadge color="success">
+                                          In Stock
+                                        </CBadge>
+                                      )}
+                                    </CTableDataCell>
+                                    <CTableDataCell className="text-end">
+                                      <CButton
+                                        color="info"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          navigate(`/products/${product._id}`)
+                                        }
                                       >
-                                        No products found
-                                      </CTableDataCell>
-                                    </CTableRow>
-                                  ) : (
-                                    dashboardData.currentProducts
-                                      .slice(0, 10)
-                                      .map((product) => (
-                                        <CTableRow key={product._id}>
-                                          <CTableDataCell>
-                                            <div className="fw-bold">
-                                              {product.name}
-                                            </div>
-                                            <small className="text-muted">
-                                              {product.code}
-                                            </small>
-                                          </CTableDataCell>
-                                          <CTableDataCell>
-                                            {product.category || "-"}
-                                          </CTableDataCell>
-                                          <CTableDataCell className="text-end">
-                                            {product.currentStock}
-                                            {product.currentStock <= 0 && (
-                                              <CBadge
-                                                color="danger"
-                                                className="ms-2"
-                                              >
-                                                OUT
-                                              </CBadge>
-                                            )}
-                                            {product.currentStock > 0 &&
-                                              product.currentStock < 10 && (
-                                                <CBadge
-                                                  color="warning"
-                                                  className="ms-2"
-                                                >
-                                                  LOW
-                                                </CBadge>
-                                              )}
-                                          </CTableDataCell>
-                                          <CTableDataCell className="text-end">
-                                            {product.price
-                                              ? formatCurrency(product.price)
-                                              : "-"}
-                                          </CTableDataCell>
-                                          <CTableDataCell>
-                                            {product.status === "active" ? (
-                                              <CBadge color="success">
-                                                Active
-                                              </CBadge>
-                                            ) : (
-                                              <CBadge color="secondary">
-                                                Inactive
-                                              </CBadge>
-                                            )}
-                                          </CTableDataCell>
-                                        </CTableRow>
-                                      ))
-                                  )}
-                                </CTableBody>
-                              </CTable>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-                      </CRow>
+                                        Details
+                                      </CButton>
+                                    </CTableDataCell>
+                                  </CTableRow>
+                                ))
+                              )}
+                            </CTableBody>
+                          </CTable>
+                        </CCardBody>
+                      </CCard>
                     </>
                   )}
 
@@ -1144,24 +1162,6 @@ const Dashboard = () => {
                         <CCol sm={6} lg={3}>
                           <CCard className="mb-3">
                             <CCardBody className="text-center">
-                              <Calendar size={48} className="text-info mb-2" />
-                              <h3 className="text-info">
-                                {
-                                  dashboardData.transactionStats
-                                    .todayTransactions
-                                }
-                              </h3>
-                              <p className="text-medium-emphasis mb-1">
-                                Today's Transactions
-                              </p>
-                              <CBadge color="info">Real-time</CBadge>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-
-                        <CCol sm={6} lg={3}>
-                          <CCard className="mb-3">
-                            <CCardBody className="text-center">
                               <ArrowUpCircle
                                 size={48}
                                 className="text-success mb-2"
@@ -1173,7 +1173,7 @@ const Dashboard = () => {
                                 }
                               </h3>
                               <p className="text-medium-emphasis mb-1">
-                                Incoming (Purchases)
+                                Incoming
                               </p>
                               <small className="text-muted">
                                 {
@@ -1200,7 +1200,7 @@ const Dashboard = () => {
                                 }
                               </h3>
                               <p className="text-medium-emphasis mb-1">
-                                Outgoing (Sales)
+                                Outgoing
                               </p>
                               <small className="text-muted">
                                 {
@@ -1212,187 +1212,132 @@ const Dashboard = () => {
                             </CCardBody>
                           </CCard>
                         </CCol>
-                      </CRow>
 
-                      {/* Transaction Value Summary */}
-                      <CRow className="mb-4">
-                        <CCol md={6}>
-                          <CCard>
-                            <CCardHeader>
-                              <h6>Transaction Value</h6>
-                            </CCardHeader>
-                            <CCardBody>
-                              <div className="d-flex justify-content-between mb-3">
-                                <span>Total Value</span>
-                                <strong>
-                                  {formatCurrency(
-                                    dashboardData.transactionStats.totalValue
-                                  )}
-                                </strong>
-                              </div>
-                              <div className="d-flex justify-content-between">
-                                <span>Today's Value</span>
-                                <strong className="text-success">
-                                  {formatCurrency(
-                                    dashboardData.transactionStats.todayValue
-                                  )}
-                                </strong>
-                              </div>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-
-                        <CCol md={6}>
-                          <CCard>
-                            <CCardHeader>
-                              <h6>Transaction Frequency</h6>
-                            </CCardHeader>
-                            <CCardBody>
-                              <div className="d-flex justify-content-between mb-3">
-                                <span>This Week</span>
-                                <strong>
-                                  {
-                                    dashboardData.transactionStats
-                                      .thisWeekTransactions
-                                  }
-                                </strong>
-                              </div>
-                              <div className="d-flex justify-content-between">
-                                <span>Average Per Day</span>
-                                <strong>
-                                  {
-                                    dashboardData.transactionStats
-                                      .averageTransactionsPerDay
-                                  }
-                                </strong>
-                              </div>
+                        <CCol sm={6} lg={3}>
+                          <CCard className="mb-3">
+                            <CCardBody className="text-center">
+                              <DollarSign
+                                size={48}
+                                className="text-info mb-2"
+                              />
+                              <h3 className="text-info">
+                                {formatCurrency(
+                                  dashboardData.transactionStats.totalValue
+                                )}
+                              </h3>
+                              <p className="text-medium-emphasis mb-1">
+                                Total Value
+                              </p>
+                              <small className="text-muted">
+                                {formatCurrency(
+                                  dashboardData.transactionStats.todayValue
+                                )}{" "}
+                                today
+                              </small>
                             </CCardBody>
                           </CCard>
                         </CCol>
                       </CRow>
 
-                      {/* Detailed Transaction Table */}
-                      <CRow>
-                        <CCol xs={12}>
-                          <CCard>
-                            <CCardHeader>
-                              <div className="d-flex justify-content-between align-items-center">
-                                <h6>Recent Transaction Details</h6>
-                                <div className="d-flex align-items-center">
-                                  <CBadge color="success" className="me-2">
-                                    <div
-                                      className="rounded-circle bg-light me-1"
-                                      style={{
-                                        width: "8px",
-                                        height: "8px",
-                                        display: "inline-block",
-                                      }}
-                                    ></div>
-                                    Live Updates
-                                  </CBadge>
-                                  <CButton
-                                    color="primary"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => navigate("/history")}
+                      {/* Transaction History Table */}
+                      <CCard className="mb-4">
+                        <CCardHeader>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <h6>Transaction History</h6>
+                            <div>
+                              <CButton
+                                color="primary"
+                                size="sm"
+                                onClick={() => navigate("/transactions/add")}
+                              >
+                                <Plus size={16} className="me-1" />
+                                New Transaction
+                              </CButton>
+                            </div>
+                          </div>
+                        </CCardHeader>
+                        <CCardBody>
+                          <CTable striped hover responsive>
+                            <CTableHead>
+                              <CTableRow>
+                                <CTableHeaderCell>Date</CTableHeaderCell>
+                                <CTableHeaderCell>Product</CTableHeaderCell>
+                                <CTableHeaderCell>Type</CTableHeaderCell>
+                                <CTableHeaderCell className="text-center">
+                                  Qty
+                                </CTableHeaderCell>
+                                <CTableHeaderCell className="text-end">
+                                  Value
+                                </CTableHeaderCell>
+                                <CTableHeaderCell className="text-end">
+                                  Actions
+                                </CTableHeaderCell>
+                              </CTableRow>
+                            </CTableHead>
+                            <CTableBody>
+                              {dashboardData.transactions.length === 0 ? (
+                                <CTableRow>
+                                  <CTableDataCell
+                                    colSpan="6"
+                                    className="text-center"
                                   >
-                                    View All
-                                  </CButton>
-                                </div>
-                              </div>
-                            </CCardHeader>
-                            <CCardBody>
-                              <CTable striped hover responsive>
-                                <CTableHead>
-                                  <CTableRow>
-                                    <CTableHeaderCell>Time</CTableHeaderCell>
-                                    <CTableHeaderCell>Type</CTableHeaderCell>
-                                    <CTableHeaderCell>Product</CTableHeaderCell>
-                                    <CTableHeaderCell className="text-end">
-                                      Qty
-                                    </CTableHeaderCell>
-                                    <CTableHeaderCell className="text-end">
-                                      Price
-                                    </CTableHeaderCell>
-                                    <CTableHeaderCell className="text-end">
-                                      Total
-                                    </CTableHeaderCell>
-                                  </CTableRow>
-                                </CTableHead>
-                                <CTableBody>
-                                  {dashboardData.transactionStats
-                                    .recentTransactions.length === 0 ? (
-                                    <CTableRow>
-                                      <CTableDataCell
-                                        colSpan={6}
-                                        className="text-center"
-                                      >
-                                        No transactions found
-                                      </CTableDataCell>
-                                    </CTableRow>
-                                  ) : (
-                                    dashboardData.transactionStats.recentTransactions.map(
-                                      (transaction) => {
-                                        const typeDisplay =
-                                          getTransactionTypeDisplay(
-                                            transaction.type
-                                          );
-                                        return (
-                                          <CTableRow key={transaction._id}>
-                                            <CTableDataCell>
-                                              <div>
-                                                {getTimeAgo(
-                                                  transaction.createdAt
-                                                )}
-                                              </div>
-                                              <small className="text-muted">
-                                                {formatDate(
-                                                  transaction.createdAt
-                                                )}
-                                              </small>
-                                            </CTableDataCell>
-                                            <CTableDataCell>
-                                              <CBadge color={typeDisplay.color}>
-                                                {typeDisplay.label}
-                                              </CBadge>
-                                            </CTableDataCell>
-                                            <CTableDataCell>
-                                              {transaction.product?.name ||
-                                                "N/A"}
-                                              <small className="text-muted d-block">
-                                                {transaction.product?.code ||
-                                                  ""}
-                                              </small>
-                                            </CTableDataCell>
-                                            <CTableDataCell className="text-end">
-                                              {transaction.quantity}
-                                            </CTableDataCell>
-                                            <CTableDataCell className="text-end">
-                                              {transaction.price
-                                                ? formatCurrency(
-                                                    transaction.price
-                                                  )
-                                                : "-"}
-                                            </CTableDataCell>
-                                            <CTableDataCell className="text-end">
-                                              {transaction.price
-                                                ? formatCurrency(
-                                                    transaction.price *
-                                                      transaction.quantity
-                                                  )
-                                                : "-"}
-                                            </CTableDataCell>
-                                          </CTableRow>
-                                        );
-                                      }
-                                    )
-                                  )}
-                                </CTableBody>
-                              </CTable>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-                      </CRow>
+                                    No transactions found
+                                  </CTableDataCell>
+                                </CTableRow>
+                              ) : (
+                                dashboardData.transactions
+                                  .slice(0, 10)
+                                  .map((transaction) => {
+                                    const typeDisplay =
+                                      getTransactionTypeDisplay(
+                                        transaction.type
+                                      );
+                                    return (
+                                      <CTableRow key={transaction._id}>
+                                        <CTableDataCell>
+                                          {formatDate(transaction.createdAt)}
+                                        </CTableDataCell>
+                                        <CTableDataCell>
+                                          {getProductName(transaction.product)}
+                                        </CTableDataCell>
+                                        <CTableDataCell>
+                                          <CBadge color={typeDisplay.color}>
+                                            {typeDisplay.label}
+                                          </CBadge>
+                                        </CTableDataCell>
+                                        <CTableDataCell className="text-center">
+                                          {transaction.quantity}
+                                        </CTableDataCell>
+                                        <CTableDataCell className="text-end">
+                                          {transaction.price
+                                            ? formatCurrency(
+                                                transaction.price *
+                                                  transaction.quantity
+                                              )
+                                            : "-"}
+                                        </CTableDataCell>
+                                        <CTableDataCell className="text-end">
+                                          <CButton
+                                            color="info"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                              navigate(
+                                                `/transactions/${transaction._id}`
+                                              )
+                                            }
+                                          >
+                                            Details
+                                          </CButton>
+                                        </CTableDataCell>
+                                      </CTableRow>
+                                    );
+                                  })
+                              )}
+                            </CTableBody>
+                          </CTable>
+                        </CCardBody>
+                      </CCard>
                     </>
                   )}
                 </>

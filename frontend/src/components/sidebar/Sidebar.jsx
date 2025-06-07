@@ -144,16 +144,6 @@ const Sidebar = [
         to: "/rop/data",
         icon: <CIcon icon={cilStorage} customClassName="nav-icon" />,
       },
-      {
-        component: CNavItem,
-        name: "Notifikasi ROP",
-        to: "/rop/notifications",
-        icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
-        badge: {
-          color: "warning",
-          text: "ALERT",
-        },
-      },
     ],
   },
   {
@@ -184,12 +174,6 @@ const Sidebar = [
         name: "Laporan EOQ & ROP",
         to: "/reports/eoq-rop",
         icon: <CIcon icon={cilChart} customClassName="nav-icon" />,
-      },
-      {
-        component: CNavItem,
-        name: "Prediksi Kebutuhan",
-        to: "/reports/forecasting",
-        icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
       },
     ],
   },
