@@ -19,7 +19,7 @@ body {
   }
 }
 
-/* Sidebar styles - Fixed scrolling behavior */
+/* Sidebar styles - Dynamic height based on content */
 .sidebar {
   height: 100vh;
   position: fixed;
@@ -65,24 +65,60 @@ body {
     display: none;
   }
 
-  /* Navigation container - Full height without bottom space */
+  /* Navigation container - Dynamic height based on content */
   .sidebar-nav,
   .c-sidebar-nav {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    height: calc(100vh - 56px); /* Removed bottom space calculation */
     padding: 0;
     margin: 0;
-    /* Enable momentum scrolling on iOS */
-    -webkit-overflow-scrolling: touch;
+    /* Modern smooth scrolling */
+    scroll-behavior: smooth;
+    /* Dynamic height calculation */
+    height: fit-content;
+    max-height: calc(100vh - 56px);
+    /* Removed min-height: auto as it's not needed and causes issues in Firefox */
 
-    /* Hide scrollbar but keep functionality */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* Internet Explorer 10+ */
-
+    /* Hide scrollbar but keep functionality - Kompatibel untuk semua browser */
     &::-webkit-scrollbar {
-      display: none; /* WebKit */
+      width: 0;
+      height: 0;
+      background: transparent;
+    }
+
+    /* Mobile specific adjustments */
+    @media (max-width: 991px) {
+      /* Dynamic height for mobile */
+      height: fit-content;
+      max-height: calc(100vh - 56px);
+      /* Removed min-height: auto */
+    }
+
+    /* Remove overscroll-behavior as it's not well supported on iOS < 16 */
+    /* Only prevent over-scroll when actively scrolling - removed for iOS compatibility */
+
+    /* When no groups are expanded, limit height to visible content */
+    &:not(:has(.c-sidebar-nav-group.show)):not(:has(.nav-group.show)) {
+      height: fit-content;
+      overflow-y: visible;
+
+      @media (max-width: 991px) {
+        height: fit-content;
+        overflow-y: visible;
+      }
+    }
+
+    /* When groups are expanded, allow full scrolling */
+    &:has(.c-sidebar-nav-group.show),
+    &:has(.nav-group.show) {
+      height: calc(100vh - 56px);
+      overflow-y: auto;
+
+      @media (max-width: 991px) {
+        height: calc(100vh - 56px);
+        overflow-y: auto;
+      }
     }
   }
 
@@ -115,8 +151,8 @@ body {
       /* Ensure links are clickable */
       pointer-events: auto;
       /* Prevent text selection on touch */
-      user-select: none;
       -webkit-user-select: none;
+      user-select: none;
       /* Improve touch response */
       -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
 
@@ -144,11 +180,12 @@ body {
     }
   }
 
-  /* Group items */
+  /* Group items - Enhanced control */
   .nav-group-items,
   .c-sidebar-nav-group-items {
-    overflow: visible;
-    max-height: none;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease-in-out;
 
     .nav-item {
       padding-left: 0;
@@ -157,6 +194,78 @@ body {
         padding-left: 2rem;
       }
     }
+  }
+
+  /* Navigation groups - Enhanced toggle behavior */
+  .c-sidebar-nav-group,
+  .nav-group {
+    &.show {
+      .c-sidebar-nav-group-items,
+      .nav-group-items {
+        max-height: 500px; /* Adjust based on your content */
+        overflow: visible;
+      }
+    }
+
+    &:not(.show) {
+      .c-sidebar-nav-group-items,
+      .nav-group-items {
+        max-height: 0;
+        overflow: hidden;
+      }
+    }
+  }
+}
+
+/* Fallback for browsers that don't support :has() */
+@supports not selector(:has(*)) {
+  .sidebar-nav,
+  .c-sidebar-nav {
+    /* Default behavior for older browsers */
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+
+    @media (max-width: 991px) {
+      height: calc(100vh - 56px);
+      overflow-y: auto;
+    }
+  }
+
+  /* Manual class-based control for older browsers */
+  .sidebar-nav.collapsed,
+  .c-sidebar-nav.collapsed {
+    height: fit-content;
+    overflow-y: visible;
+    max-height: calc(100vh - 56px);
+
+    @media (max-width: 991px) {
+      height: fit-content;
+      overflow-y: visible;
+    }
+  }
+}
+
+/* Mobile sidebar content adjustments */
+@media (max-width: 991px) {
+  .sidebar-nav,
+  .c-sidebar-nav {
+    /* Smooth scrolling behavior */
+    scroll-behavior: smooth;
+  }
+
+  /* Natural spacing for last items */
+  .sidebar-nav .nav-item:last-child,
+  .c-sidebar-nav .c-sidebar-nav-item:last-child {
+    margin-bottom: 0;
+    /* Minimal padding to prevent cut-off */
+    padding-bottom: 0.25rem;
+  }
+
+  /* Natural spacing for navigation groups */
+  .c-sidebar-nav-group:last-child,
+  .nav-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0.25rem;
   }
 }
 
@@ -329,7 +438,7 @@ body {
   margin-bottom: 0;
 }
 
-/* Fix for navigation groups */
+/* Fix for navigation groups - Enhanced toggle control */
 .c-sidebar-nav-group,
 .nav-group {
   .c-sidebar-nav-group-toggle,
@@ -343,6 +452,8 @@ body {
     pointer-events: auto;
     /* Improve touch response */
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    /* Add transition for smooth toggle */
+    transition: all 0.15s ease-in-out;
 
     &:hover,
     &:focus {
@@ -352,12 +463,42 @@ body {
     &:active {
       background-color: #e9ecef;
     }
+
+    /* Arrow indicator */
+    &::after {
+      content: "";
+      margin-left: auto;
+      border: solid #5c6873;
+      border-width: 0 2px 2px 0;
+      display: inline-block;
+      padding: 3px;
+      transform: rotate(45deg);
+      transition: transform 0.3s ease-in-out;
+    }
   }
 
   &.show {
+    .c-sidebar-nav-group-toggle,
+    .nav-group-toggle {
+      &::after {
+        transform: rotate(-135deg);
+      }
+    }
+
     .c-sidebar-nav-group-items,
     .nav-group-items {
       display: block;
+      max-height: 500px;
+      overflow: visible;
+    }
+  }
+
+  &:not(.show) {
+    .c-sidebar-nav-group-items,
+    .nav-group-items {
+      display: none;
+      max-height: 0;
+      overflow: hidden;
     }
   }
 }
@@ -384,16 +525,23 @@ body {
   }
 }
 
-/* Fix for iOS Safari */
+/* Enhanced iOS Safari support with dynamic height */
 @supports (-webkit-touch-callout: none) {
-  .sidebar {
-    /* Fix for iOS Safari scrolling */
-    -webkit-overflow-scrolling: touch;
-  }
-
   .sidebar-nav,
   .c-sidebar-nav {
-    /* Improve scrolling performance on iOS */
-    transform: translateZ(0);
+    /* Remove overscroll-behavior for iOS compatibility */
+
+    @media (max-width: 991px) {
+      /* Dynamic height behavior on mobile iOS */
+      height: fit-content;
+      max-height: calc(100vh - 56px);
+
+      /* When groups are expanded */
+      &:has(.c-sidebar-nav-group.show),
+      &:has(.nav-group.show) {
+        height: calc(100vh - 56px);
+        overflow-y: auto;
+      }
+    }
   }
 }

@@ -2,39 +2,13 @@ import Product from "../models/ProductModel.js";
 import Category from "../models/CategoryModel.js";
 import Supplier from "../models/SupplierModel.js";
 import asyncHandler from "express-async-handler";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
 import mongoose from "mongoose";
 
-// Get directory name in ES module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Configure upload directory
-const uploadDir = path.join(__dirname, "../public/uploads/products");
-
-// Ensure the upload directory exists
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Helper function to process uploaded file
-const processUploadedFile = (file) => {
-  try {
-    // Generate a unique filename to prevent overwriting
-    const timestamp = new Date().getTime();
-    const fileName = `${timestamp}-${file.name.replace(/\s+/g, "-")}`;
-    const uploadPath = path.join(uploadDir, fileName);
-
-    // Move the file to upload directory synchronously
-    file.mv(uploadPath);
-
-    return fileName;
-  } catch (error) {
-    throw new Error(`File upload failed: ${error.message}`);
-  }
-};
+// Import email service functions
+import {
+  checkAndNotifyLowStock,
+  checkAllProductsLowStock,
+} from "../service/productEmailService.js";
 
 // Helper function to find or create category
 const findOrCreateCategory = async (categoryInput) => {
@@ -143,12 +117,6 @@ export const createProduct = asyncHandler(async (req, res) => {
       req.body.supplier = await findOrCreateSupplier(req.body.supplier);
     }
 
-    // Handle file upload if there's a file
-    if (req.files && req.files.image) {
-      const fileName = processUploadedFile(req.files.image);
-      req.body.image = fileName;
-    }
-
     // Validate required fields
     if (!req.body.name || !req.body.price || !req.body.supplier) {
       return res.status(400).json({
@@ -158,6 +126,9 @@ export const createProduct = asyncHandler(async (req, res) => {
 
     const product = new Product(req.body);
     const insert = await product.save();
+
+    // Check for low stock after creating product using email service
+    await checkAndNotifyLowStock(insert);
 
     // Populate the response with full category and supplier details
     const populatedProduct = await Product.findById(insert._id)
@@ -199,11 +170,6 @@ export const createProduct = asyncHandler(async (req, res) => {
 export const getProduct = asyncHandler(async (req, res) => {
   try {
     let query = {};
-
-    // Optional: If you want to filter by user role (uncomment if needed)
-    // if (req.user && req.user.role === "karyawan") {
-    //   query.createdBy = req.user.id;
-    // }
 
     const products = await Product.find(query)
       .populate("category", "name description")
@@ -266,6 +232,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
       return res.status(404).json({ msg: "Product not found" });
     }
 
+    // Store original stock values for comparison
+    const originalCurrentStock = product.currentStock;
+    const originalMinStock = product.minStock;
+
     // Optional: Check if user has access to update this product (uncomment if needed)
     // if (
     //   req.user &&
@@ -293,24 +263,6 @@ export const updateProduct = asyncHandler(async (req, res) => {
     }
     req.body.updatedAt = new Date();
 
-    // Handle file upload if there's a file
-    if (req.files && req.files.image) {
-      // Delete old image if it exists and is not the default image
-      if (product.image && product.image !== "default-product.jpg") {
-        const oldImagePath = path.join(uploadDir, product.image);
-        if (fs.existsSync(oldImagePath)) {
-          try {
-            fs.unlinkSync(oldImagePath);
-          } catch (error) {
-            console.log("Error deleting old image:", error);
-          }
-        }
-      }
-
-      const fileName = processUploadedFile(req.files.image);
-      req.body.image = fileName;
-    }
-
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
@@ -320,6 +272,27 @@ export const updateProduct = asyncHandler(async (req, res) => {
       .populate("supplier", "name contact phone address")
       .populate("createdBy", "name")
       .populate("updatedBy", "name");
+
+    // Check if stock levels changed and if notification is needed
+    const newCurrentStock =
+      req.body.currentStock !== undefined
+        ? req.body.currentStock
+        : originalCurrentStock;
+    const newMinStock =
+      req.body.minStock !== undefined ? req.body.minStock : originalMinStock;
+
+    // Check for low stock if stock values changed using email service
+    if (
+      newCurrentStock !== originalCurrentStock ||
+      newMinStock !== originalMinStock
+    ) {
+      const productForCheck = {
+        ...updatedProduct.toObject(),
+        currentStock: newCurrentStock,
+        minStock: newMinStock,
+      };
+      await checkAndNotifyLowStock(productForCheck);
+    }
 
     res.status(200).json({
       msg: "Product Updated Successfully",
@@ -355,31 +328,12 @@ export const deleteProduct = asyncHandler(async (req, res) => {
       return res.status(404).json({ msg: "Product not found" });
     }
 
-    // Optional: Check if user has access to delete this product (uncomment if needed)
-    // if (
-    //   req.user &&
-    //   req.user.role === "karyawan" &&
-    //   product.createdBy.toString() !== req.user.id
-    // ) {
-    //   return res
-    //     .status(403)
-    //     .json({ msg: "Not authorized to delete this product" });
-    // }
+    // Use remove() instead of findByIdAndDelete() to trigger pre-remove hooks
+    await product.remove();
 
-    // Delete product image if it exists and is not the default image
-    if (product.image && product.image !== "default-product.jpg") {
-      const imagePath = path.join(uploadDir, product.image);
-      if (fs.existsSync(imagePath)) {
-        try {
-          fs.unlinkSync(imagePath);
-        } catch (error) {
-          console.log("Error deleting image:", error);
-        }
-      }
-    }
-
-    await Product.findByIdAndDelete(req.params.id);
-    res.status(200).json({ msg: "Product Deleted Successfully" });
+    res
+      .status(200)
+      .json({ msg: "Product and related transactions deleted successfully" });
   } catch (error) {
     console.error("Delete product error:", error);
 
@@ -391,27 +345,24 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Get product image
-// @route   GET /api/products/image/:imageName
-// @access  Public
-export const getProductImage = asyncHandler(async (req, res) => {
+// @desc    Check all products for low stock and send notifications
+// @route   POST /api/products/check-low-stock
+// @access  Private (Admin/Pemilik only)
+export const checkAllLowStock = asyncHandler(async (req, res) => {
   try {
-    const imageName = req.params.imageName;
-    const imagePath = path.join(uploadDir, imageName);
+    const result = await checkAllProductsLowStock();
 
-    if (fs.existsSync(imagePath)) {
-      res.sendFile(imagePath);
+    if (result.success) {
+      res.json(result);
     } else {
-      // Send default image if requested image doesn't exist
-      const defaultImagePath = path.join(uploadDir, "default-product.jpg");
-      if (fs.existsSync(defaultImagePath)) {
-        res.sendFile(defaultImagePath);
-      } else {
-        res.status(404).json({ msg: "Image not found" });
-      }
+      res.status(500).json(result);
     }
   } catch (error) {
-    console.error("Get product image error:", error);
-    res.status(500).json({ msg: "Error retrieving image" });
+    console.error("Check all low stock error:", error);
+    res.status(500).json({
+      success: false,
+      msg: error.message,
+      stack: error.stack,
+    });
   }
 });

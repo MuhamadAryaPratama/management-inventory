@@ -225,10 +225,8 @@ const AppHeaderDropdown = () => {
         <CDropdownItem>
           <div className="fw-semibold">{displayName}</div>
         </CDropdownItem>
-        <CDropdownItem divider="true" />
         <CDropdownItem onClick={handleProfileClick}>Profile</CDropdownItem>
         <CDropdownItem onClick={handleSettingsClick}>Settings</CDropdownItem>
-        <CDropdownItem divider="true" />
         <CDropdownItem onClick={handleLogout}>Logout</CDropdownItem>
       </CDropdownMenu>
     </CDropdown>

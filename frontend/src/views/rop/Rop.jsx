@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import {
   CCard,
@@ -18,15 +18,12 @@ import {
   CModalTitle,
   CModalBody,
   CModalFooter,
-  CForm,
-  CFormInput,
-  CFormLabel,
-  CFormSelect,
   CAlert,
   CBadge,
   CSpinner,
   CInputGroup,
   CInputGroupText,
+  CFormInput,
   CPagination,
   CPaginationItem,
   CDropdown,
@@ -37,7 +34,6 @@ import {
 import CIcon from "@coreui/icons-react";
 import {
   cilStorage,
-  cilPlus,
   cilSearch,
   cilFilter,
   cilReload,
@@ -49,30 +45,20 @@ const Rop = () => {
   const [ropData, setRopData] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [calculating, setCalculating] = useState(false);
-  const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedRopDetail, setSelectedRopDetail] = useState(null);
   const [alert, setAlert] = useState({ show: false, type: "", message: "" });
-
-  // Form states
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const [leadTime, setLeadTime] = useState("");
-  const [dailyDemand, setDailyDemand] = useState("");
-
-  // Filter and search states
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    fetchRopData();
-    fetchProducts();
+  const showAlert = useCallback((type, message) => {
+    setAlert({ show: true, type, message });
+    setTimeout(() => setAlert({ show: false, type: "", message: "" }), 5000);
   }, []);
 
-  const fetchRopData = async () => {
+  const fetchRopData = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("userToken");
@@ -89,11 +75,8 @@ const Rop = () => {
         },
       });
 
-      // Handle different response structures
       const data = response.data?.data || response.data || [];
       setRopData(Array.isArray(data) ? data : []);
-
-      console.log("ROP Data fetched:", data); // Debug log
     } catch (error) {
       console.error("Error fetching ROP data:", error);
       const errorMessage =
@@ -105,9 +88,9 @@ const Rop = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showAlert]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       const token = localStorage.getItem("userToken");
 
@@ -125,8 +108,6 @@ const Rop = () => {
 
       const data = response.data?.data || response.data || [];
       setProducts(Array.isArray(data) ? data : []);
-
-      console.log("Products fetched:", data); // Debug log
     } catch (error) {
       console.error("Error fetching products:", error);
       const errorMessage =
@@ -136,58 +117,22 @@ const Rop = () => {
       showAlert("danger", errorMessage);
       setProducts([]);
     }
-  };
+  }, [showAlert]);
 
-  // Function to calculate/recalculate ROP
-  const calculateRop = async () => {
-    try {
-      setCalculating(true);
-      const token = localStorage.getItem("userToken");
+  useEffect(() => {
+    fetchRopData();
+    fetchProducts();
+  }, [fetchRopData, fetchProducts]);
 
-      if (!token) {
-        showAlert("danger", "Token tidak ditemukan. Silakan login kembali.");
-        return;
-      }
-
-      // If there's a separate calculate endpoint
-      const response = await axios.post(
-        "http://localhost:5000/api/rop/calculate",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      showAlert("success", "ROP berhasil dihitung ulang");
-      fetchRopData(); // Refresh data after calculation
-    } catch (error) {
-      console.error("Error calculating ROP:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.statusText ||
-        "Gagal menghitung ROP";
-      showAlert("danger", errorMessage);
-    } finally {
-      setCalculating(false);
-    }
-  };
-
-  // Helper function to get current stock consistently
-  const getCurrentStock = (product) => {
+  const getCurrentStock = useCallback((product) => {
     if (!product) return 0;
-    // Priority: currentStock > stock > 0
     return product.currentStock !== undefined
       ? product.currentStock
       : product.stock || 0;
-  };
+  }, []);
 
-  // Enhanced function to merge ROP data with latest product stock
-  const getMergedRopData = () => {
+  const getMergedRopData = useCallback(() => {
     return ropData.map((rop) => {
-      // Find the corresponding product from products array to get latest stock
       const currentProduct = products.find((p) => p._id === rop.product?._id);
 
       if (currentProduct) {
@@ -196,12 +141,11 @@ const Rop = () => {
           product: {
             ...rop.product,
             currentStock: getCurrentStock(currentProduct),
-            stock: getCurrentStock(currentProduct), // Keep both for compatibility
+            stock: getCurrentStock(currentProduct),
           },
         };
       }
 
-      // If no matching product found, use existing data
       return {
         ...rop,
         product: {
@@ -211,81 +155,14 @@ const Rop = () => {
         },
       };
     });
-  };
-
-  const showAlert = (type, message) => {
-    setAlert({ show: true, type, message });
-    setTimeout(() => setAlert({ show: false, type: "", message: "" }), 5000);
-  };
-
-  const handleAddNew = () => {
-    setSelectedProduct("");
-    setLeadTime("");
-    setDailyDemand("");
-    setShowModal(true);
-  };
+  }, [ropData, products, getCurrentStock]);
 
   const handleDetail = (rop) => {
     setSelectedRopDetail(rop);
     setShowDetailModal(true);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!selectedProduct || !leadTime || !dailyDemand) {
-      showAlert("warning", "Semua field harus diisi");
-      return;
-    }
-
-    const leadTimeNum = parseFloat(leadTime);
-    const dailyDemandNum = parseFloat(dailyDemand);
-
-    if (leadTimeNum <= 0 || dailyDemandNum <= 0) {
-      showAlert("warning", "Lead time dan daily demand harus lebih dari 0");
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const payload = {
-        product: selectedProduct,
-        leadTime: leadTimeNum,
-        dailyDemand: dailyDemandNum,
-      };
-
-      const token = localStorage.getItem("userToken");
-
-      if (!token) {
-        showAlert("danger", "Token tidak ditemukan. Silakan login kembali.");
-        return;
-      }
-
-      // Create new ROP
-      await axios.post("http://localhost:5000/api/rop", payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      showAlert("success", "Data ROP berhasil ditambahkan");
-      setShowModal(false);
-      fetchRopData();
-    } catch (error) {
-      console.error("Error saving ROP:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.statusText ||
-        "Terjadi kesalahan saat menyimpan data";
-      showAlert("danger", errorMessage);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const getRopStatus = (rop, currentStock) => {
+  const getRopStatus = useCallback((rop, currentStock) => {
     if (currentStock === undefined || currentStock === null || !rop.rop) {
       return { status: "unknown", label: "Unknown", color: "secondary" };
     }
@@ -299,12 +176,10 @@ const Rop = () => {
     } else {
       return { status: "safe", label: "Aman", color: "success" };
     }
-  };
+  }, []);
 
-  // Get merged data for display
   const mergedRopData = getMergedRopData();
 
-  // Filter and search logic
   const filteredData = mergedRopData.filter((rop) => {
     const matchesSearch = rop.product?.name
       ?.toLowerCase()
@@ -317,7 +192,6 @@ const Rop = () => {
     return matchesSearch && status.status === statusFilter;
   });
 
-  // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
@@ -336,25 +210,13 @@ const Rop = () => {
                 </strong>
                 <div className="d-flex gap-2">
                   <CButton
-                    color="success"
-                    onClick={calculateRop}
-                    disabled={calculating}
+                    color="primary"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => (window.location.href = "/rop/calculator")}
                   >
-                    {calculating ? (
-                      <>
-                        <CSpinner size="sm" className="me-2" />
-                        Menghitung...
-                      </>
-                    ) : (
-                      <>
-                        <CIcon icon={cilCalculator} className="me-2" />
-                        Hitung ROP
-                      </>
-                    )}
-                  </CButton>
-                  <CButton color="primary" onClick={handleAddNew}>
-                    <CIcon icon={cilPlus} className="me-2" />
-                    Tambah ROP
+                    <CIcon icon={cilCalculator} className="me-2" />
+                    Hitung ROP
                   </CButton>
                   <CButton
                     color="secondary"
@@ -387,7 +249,6 @@ const Rop = () => {
                 </CAlert>
               )}
 
-              {/* Search and Filter */}
               <CRow className="mb-3">
                 <CCol md={6}>
                   <CInputGroup>
@@ -518,7 +379,6 @@ const Rop = () => {
                     </CTableBody>
                   </CTable>
 
-                  {/* Pagination */}
                   {totalPages > 1 && (
                     <CPagination className="justify-content-center mt-3">
                       <CPaginationItem
@@ -551,107 +411,6 @@ const Rop = () => {
         </CCol>
       </CRow>
 
-      {/* Add Modal */}
-      <CModal visible={showModal} onClose={() => setShowModal(false)} size="lg">
-        <CModalHeader>
-          <CModalTitle>Tambah Data ROP</CModalTitle>
-        </CModalHeader>
-        <CForm onSubmit={handleSubmit}>
-          <CModalBody>
-            <CRow className="mb-3">
-              <CCol>
-                <CFormLabel htmlFor="product">Produk</CFormLabel>
-                <CFormSelect
-                  id="product"
-                  value={selectedProduct}
-                  onChange={(e) => setSelectedProduct(e.target.value)}
-                  required
-                >
-                  <option value="">Pilih Produk</option>
-                  {products.map((product) => (
-                    <option key={product._id} value={product._id}>
-                      {product.name} (Stock: {getCurrentStock(product)})
-                    </option>
-                  ))}
-                </CFormSelect>
-              </CCol>
-            </CRow>
-
-            <CRow className="mb-3">
-              <CCol md={6}>
-                <CFormLabel htmlFor="leadTime">Lead Time (Hari)</CFormLabel>
-                <CFormInput
-                  type="number"
-                  id="leadTime"
-                  placeholder="Masukkan lead time"
-                  value={leadTime}
-                  onChange={(e) => setLeadTime(e.target.value)}
-                  min="0"
-                  step="0.1"
-                  required
-                />
-                <small className="text-muted">
-                  Waktu tunggu dari pemesanan hingga barang diterima
-                </small>
-              </CCol>
-
-              <CCol md={6}>
-                <CFormLabel htmlFor="dailyDemand">
-                  Permintaan Harian (Unit/Hari)
-                </CFormLabel>
-                <CFormInput
-                  type="number"
-                  id="dailyDemand"
-                  placeholder="Masukkan permintaan harian"
-                  value={dailyDemand}
-                  onChange={(e) => setDailyDemand(e.target.value)}
-                  min="0"
-                  step="0.1"
-                  required
-                />
-                <small className="text-muted">
-                  Rata-rata penggunaan barang per hari
-                </small>
-              </CCol>
-            </CRow>
-
-            {leadTime && dailyDemand && (
-              <CRow className="mb-3">
-                <CCol>
-                  <CAlert color="info">
-                    <strong>Perhitungan ROP:</strong>
-                    <br />
-                    ROP = {dailyDemand} × {leadTime} ={" "}
-                    <strong>
-                      {Math.ceil(
-                        parseFloat(dailyDemand) * parseFloat(leadTime)
-                      )}{" "}
-                      unit
-                    </strong>
-                  </CAlert>
-                </CCol>
-              </CRow>
-            )}
-          </CModalBody>
-          <CModalFooter>
-            <CButton color="secondary" onClick={() => setShowModal(false)}>
-              Batal
-            </CButton>
-            <CButton color="primary" type="submit" disabled={saving}>
-              {saving ? (
-                <>
-                  <CSpinner size="sm" className="me-2" />
-                  Menyimpan...
-                </>
-              ) : (
-                "Simpan"
-              )}
-            </CButton>
-          </CModalFooter>
-        </CForm>
-      </CModal>
-
-      {/* Detail Modal */}
       <CModal
         visible={showDetailModal}
         onClose={() => setShowDetailModal(false)}

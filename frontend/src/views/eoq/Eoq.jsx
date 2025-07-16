@@ -32,6 +32,7 @@ import {
   cilReload,
   cilInfo,
   cilCalculator,
+  cilTrash,
 } from "@coreui/icons";
 import axios from "axios";
 
@@ -42,19 +43,21 @@ const Eoq = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredData, setFilteredData] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
-
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
-  // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEoq, setSelectedEoq] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Hitung indeks pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   useEffect(() => {
     fetchAllData();
@@ -68,6 +71,7 @@ const Eoq = () => {
     setLoading(true);
     try {
       await Promise.all([fetchEoqData(), fetchProducts(), fetchCategories()]);
+      setError("");
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("Gagal memuat data");
@@ -82,7 +86,18 @@ const Eoq = () => {
       const response = await axios.get("http://localhost:5000/api/eoq", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setEoqData(response.data.data || response.data || []);
+
+      // Membulatkan semua nilai EOQ ke integer
+      const roundedData = (response.data.data || response.data || []).map(
+        (item) => ({
+          ...item,
+          eoq: Math.round(item.eoq),
+          orderFrequency: Math.round(item.orderFrequency),
+          totalCost: Math.round(item.totalCost),
+        })
+      );
+
+      setEoqData(roundedData);
     } catch (error) {
       console.error("Error fetching EOQ data:", error);
       throw new Error("Gagal memuat data EOQ");
@@ -95,7 +110,6 @@ const Eoq = () => {
       const response = await axios.get("http://localhost:5000/api/products", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Ensure we get the same structure as Product.jsx
       setProducts(response.data.data || response.data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -109,7 +123,6 @@ const Eoq = () => {
       const response = await axios.get("http://localhost:5000/api/categories", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Ensure we get the same structure as Product.jsx
       setCategories(response.data.data || response.data || []);
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -117,7 +130,28 @@ const Eoq = () => {
     }
   };
 
-  // Helper function to get product data with populated category
+  const deleteEoq = async (id) => {
+    setDeleteLoading(true);
+    try {
+      const token = localStorage.getItem("userToken");
+      await axios.delete(`http://localhost:5000/api/eoq/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSuccess("Data EOQ berhasil dihapus");
+      fetchAllData();
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error("Error deleting EOQ:", error);
+      setError("Gagal menghapus data EOQ");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const productExists = (productId) => {
+    return products.some((p) => p._id === productId || p.id === productId);
+  };
+
   const getProductWithCategory = (productId) => {
     const product = products.find(
       (p) => p._id === productId || p.id === productId
@@ -125,29 +159,15 @@ const Eoq = () => {
 
     if (!product) return null;
 
-    // Handle different possible category structures from Product.jsx
     let categoryData = null;
-
     if (product.category) {
       if (typeof product.category === "object") {
-        // Category is already populated (like in Product.jsx)
         categoryData = product.category;
       } else {
-        // Category is just an ID, find it in categories array
         categoryData = categories.find(
           (c) => c._id === product.category || c.id === product.category
         );
       }
-    } else if (product.categoryId) {
-      // Handle categoryId field
-      categoryData = categories.find(
-        (c) => c._id === product.categoryId || c.id === product.categoryId
-      );
-    } else if (product.category_id) {
-      // Handle category_id field
-      categoryData = categories.find(
-        (c) => c._id === product.category_id || c.id === product.category_id
-      );
     }
 
     return {
@@ -156,24 +176,20 @@ const Eoq = () => {
     };
   };
 
-  // Helper function to get category name (consistent with Product.jsx)
   const getCategoryName = (productId) => {
     const productWithCategory = getProductWithCategory(productId);
-
     if (!productWithCategory || !productWithCategory.category) {
       return "Tidak ada kategori";
     }
-
     const category = productWithCategory.category;
     return typeof category === "object" ? category.name : category;
   };
 
-  // Helper function to get product name (consistent with Product.jsx)
   const getProductName = (productId) => {
     const product = products.find(
       (p) => p._id === productId || p.id === productId
     );
-    return product?.name || "N/A";
+    return product?.name || "[Produk Dihapus]";
   };
 
   const filterAndSortData = () => {
@@ -183,7 +199,15 @@ const Eoq = () => {
         item.product_id ||
         item.product?.id ||
         item.product?._id;
+      return productExists(productId);
+    });
 
+    filtered = filtered.filter((item) => {
+      const productId =
+        item.productId ||
+        item.product_id ||
+        item.product?.id ||
+        item.product?._id;
       const productName = getProductName(productId)?.toLowerCase() || "";
       const categoryName = getCategoryName(productId)?.toLowerCase() || "";
       const search = searchTerm.toLowerCase();
@@ -247,10 +271,13 @@ const Eoq = () => {
   };
 
   const formatNumber = (number) => {
-    return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(number);
+    // Tampilkan tanpa desimal untuk bilangan bulat
+    return Number.isInteger(number)
+      ? new Intl.NumberFormat("id-ID").format(number)
+      : new Intl.NumberFormat("id-ID", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(number);
   };
 
   const formatDate = (date) => {
@@ -272,12 +299,6 @@ const Eoq = () => {
       return { color: "success", text: "Optimal" };
     }
   };
-
-  // Pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   return (
     <>
@@ -327,7 +348,6 @@ const Eoq = () => {
                 </CAlert>
               )}
 
-              {/* Search Bar */}
               <CRow className="mb-3">
                 <CCol md={6}>
                   <CInputGroup>
@@ -383,41 +403,13 @@ const Eoq = () => {
                           {sortConfig.key === "eoq" &&
                             (sortConfig.direction === "asc" ? "↑" : "↓")}
                         </CTableHeaderCell>
-                        <CTableHeaderCell
-                          style={{ cursor: "pointer" }}
-                          onClick={() => handleSort("orderFrequency")}
-                        >
-                          Frekuensi Order{" "}
-                          {sortConfig.key === "orderFrequency" &&
-                            (sortConfig.direction === "asc" ? "↑" : "↓")}
-                        </CTableHeaderCell>
-                        <CTableHeaderCell
-                          style={{ cursor: "pointer" }}
-                          onClick={() => handleSort("totalCost")}
-                        >
-                          Total Biaya{" "}
-                          {sortConfig.key === "totalCost" &&
-                            (sortConfig.direction === "asc" ? "↑" : "↓")}
-                        </CTableHeaderCell>
                         <CTableHeaderCell>Status</CTableHeaderCell>
-                        <CTableHeaderCell
-                          style={{ cursor: "pointer" }}
-                          onClick={() => handleSort("lastCalculated")}
-                        >
-                          Terakhir Dihitung{" "}
-                          {sortConfig.key === "lastCalculated" &&
-                            (sortConfig.direction === "asc" ? "↑" : "↓")}
-                        </CTableHeaderCell>
-                        <CTableHeaderCell width="120">Aksi</CTableHeaderCell>
+                        <CTableHeaderCell width="150">Aksi</CTableHeaderCell>
                       </CTableRow>
                     </CTableHead>
                     <CTableBody>
                       {currentItems.length > 0 ? (
                         currentItems.map((eoq) => {
-                          const status = getEoqStatus(
-                            eoq.eoq,
-                            eoq.orderFrequency
-                          );
                           const productId =
                             eoq.productId ||
                             eoq.product_id ||
@@ -425,6 +417,10 @@ const Eoq = () => {
                             eoq.product?._id;
                           const productName = getProductName(productId);
                           const categoryName = getCategoryName(productId);
+                          const status = getEoqStatus(
+                            eoq.eoq,
+                            eoq.orderFrequency
+                          );
 
                           return (
                             <CTableRow key={eoq._id}>
@@ -438,20 +434,7 @@ const Eoq = () => {
                               </CTableDataCell>
                               <CTableDataCell>
                                 <strong className="text-primary">
-                                  {formatNumber(eoq.eoq)} unit
-                                </strong>
-                              </CTableDataCell>
-                              <CTableDataCell>
-                                {formatNumber(eoq.orderFrequency)} kali/tahun
-                                <br />
-                                <small className="text-muted">
-                                  ~{formatNumber(365 / eoq.orderFrequency)} hari
-                                  sekali
-                                </small>
-                              </CTableDataCell>
-                              <CTableDataCell>
-                                <strong className="text-success">
-                                  {formatCurrency(eoq.totalCost)}
+                                  {Math.round(eoq.eoq)} unit
                                 </strong>
                               </CTableDataCell>
                               <CTableDataCell>
@@ -460,19 +443,28 @@ const Eoq = () => {
                                 </CBadge>
                               </CTableDataCell>
                               <CTableDataCell>
-                                <small>{formatDate(eoq.lastCalculated)}</small>
-                              </CTableDataCell>
-                              <CTableDataCell>
                                 <CButton
                                   color="info"
                                   variant="outline"
                                   size="sm"
+                                  className="me-2"
                                   onClick={() => {
                                     setSelectedEoq(eoq);
                                     setShowDetailModal(true);
                                   }}
                                 >
-                                  <CIcon icon={cilInfo} className="me-1" />
+                                  <CIcon icon={cilInfo} />
+                                </CButton>
+                                <CButton
+                                  color="danger"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedEoq(eoq);
+                                    setShowDeleteModal(true);
+                                  }}
+                                >
+                                  <CIcon icon={cilTrash} />
                                 </CButton>
                               </CTableDataCell>
                             </CTableRow>
@@ -481,7 +473,7 @@ const Eoq = () => {
                       ) : (
                         <CTableRow>
                           <CTableDataCell
-                            colSpan="8"
+                            colSpan="5"
                             className="text-center py-4"
                           >
                             <div className="text-muted">
@@ -508,7 +500,6 @@ const Eoq = () => {
                     </CTableBody>
                   </CTable>
 
-                  {/* Pagination */}
                   {totalPages > 1 && (
                     <CRow className="mt-3">
                       <CCol className="d-flex justify-content-center">
@@ -547,7 +538,6 @@ const Eoq = () => {
         </CCol>
       </CRow>
 
-      {/* Detail Modal */}
       <CModal
         visible={showDetailModal}
         onClose={() => setShowDetailModal(false)}
@@ -627,7 +617,7 @@ const Eoq = () => {
                         <strong>Permintaan Tahunan</strong>
                       </CTableDataCell>
                       <CTableDataCell>
-                        {formatNumber(selectedEoq.annualDemand)} unit
+                        {Math.round(selectedEoq.annualDemand)} unit
                       </CTableDataCell>
                     </CTableRow>
                   </CTableBody>
@@ -643,7 +633,7 @@ const Eoq = () => {
                         <strong>EOQ (Unit Optimal)</strong>
                       </CTableDataCell>
                       <CTableDataCell className="text-primary fw-bold">
-                        {formatNumber(selectedEoq.eoq)} unit
+                        {Math.round(selectedEoq.eoq)} unit
                       </CTableDataCell>
                     </CTableRow>
                     <CTableRow>
@@ -651,7 +641,7 @@ const Eoq = () => {
                         <strong>Frekuensi Pemesanan</strong>
                       </CTableDataCell>
                       <CTableDataCell>
-                        {formatNumber(selectedEoq.orderFrequency)} kali/tahun
+                        {Math.round(selectedEoq.orderFrequency)} kali/tahun
                       </CTableDataCell>
                     </CTableRow>
                     <CTableRow>
@@ -659,48 +649,11 @@ const Eoq = () => {
                         <strong>Total Biaya Optimal</strong>
                       </CTableDataCell>
                       <CTableDataCell className="text-success fw-bold">
-                        {formatCurrency(selectedEoq.totalCost)}
-                      </CTableDataCell>
-                    </CTableRow>
-                    <CTableRow>
-                      <CTableDataCell>
-                        <strong>Periode Antar Pesanan</strong>
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        {formatNumber(365 / selectedEoq.orderFrequency)} hari
-                      </CTableDataCell>
-                    </CTableRow>
-                    <CTableRow>
-                      <CTableDataCell>
-                        <strong>Terakhir Dihitung</strong>
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        {formatDate(selectedEoq.lastCalculated)}
+                        {formatCurrency(Math.round(selectedEoq.totalCost))}
                       </CTableDataCell>
                     </CTableRow>
                   </CTableBody>
                 </CTable>
-
-                <CAlert color="info" className="mt-3">
-                  <strong>Rekomendasi:</strong>
-                  <ul className="mb-0 mt-2">
-                    <li>
-                      Pesan{" "}
-                      <strong>{formatNumber(selectedEoq.eoq)} unit</strong>{" "}
-                      setiap kali order
-                    </li>
-                    <li>
-                      Lakukan pemesanan setiap{" "}
-                      <strong>
-                        {formatNumber(365 / selectedEoq.orderFrequency)} hari
-                      </strong>
-                    </li>
-                    <li>
-                      Total biaya optimal:{" "}
-                      <strong>{formatCurrency(selectedEoq.totalCost)}</strong>
-                    </li>
-                  </ul>
-                </CAlert>
               </CCol>
             </CRow>
           )}
@@ -708,6 +661,51 @@ const Eoq = () => {
         <CModalFooter>
           <CButton color="secondary" onClick={() => setShowDetailModal(false)}>
             Tutup
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      <CModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+      >
+        <CModalHeader>
+          <CModalTitle>Konfirmasi Hapus</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          Apakah Anda yakin ingin menghapus data EOQ untuk produk:{" "}
+          <strong>
+            {selectedEoq &&
+              getProductName(
+                selectedEoq.productId ||
+                  selectedEoq.product_id ||
+                  selectedEoq.product?.id ||
+                  selectedEoq.product?._id
+              )}
+          </strong>
+          ?
+        </CModalBody>
+        <CModalFooter>
+          <CButton
+            color="secondary"
+            onClick={() => setShowDeleteModal(false)}
+            disabled={deleteLoading}
+          >
+            Batal
+          </CButton>
+          <CButton
+            color="danger"
+            onClick={() => deleteEoq(selectedEoq._id)}
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? (
+              <CSpinner size="sm" />
+            ) : (
+              <>
+                <CIcon icon={cilTrash} className="me-1" />
+                Hapus
+              </>
+            )}
           </CButton>
         </CModalFooter>
       </CModal>

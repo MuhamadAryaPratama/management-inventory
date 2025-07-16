@@ -48,7 +48,7 @@ const Product = () => {
   const [itemsPerPage] = useState(10);
   const navigate = useNavigate();
 
-  // Fetch categories from API
+  // Ambil data kategori dari API
   const fetchCategories = async () => {
     setCategoriesLoading(true);
     try {
@@ -61,17 +61,17 @@ const Product = () => {
       if (response.data) {
         setCategories(response.data);
       } else {
-        throw new Error("No categories data received from server");
+        throw new Error("Tidak ada data kategori yang diterima dari server");
       }
     } catch (err) {
-      console.error("Error fetching categories:", err);
+      console.error("Gagal mengambil data kategori:", err);
       setCategories([]);
     } finally {
       setCategoriesLoading(false);
     }
   };
 
-  // Fetch products from API
+  // Ambil data produk dari API
   const fetchProducts = async () => {
     setLoading(true);
     setError(null);
@@ -85,14 +85,14 @@ const Product = () => {
       if (response.data) {
         setProducts(response.data);
       } else {
-        throw new Error("No data received from server");
+        throw new Error("Tidak ada data yang diterima dari server");
       }
     } catch (err) {
-      console.error("Error fetching products:", err);
+      console.error("Gagal mengambil data produk:", err);
       setError(
-        `Failed to load product data: ${
+        `Gagal memuat data produk: ${
           err.response?.data?.message || err.message
-        }. Please try again later.`
+        }. Silakan coba lagi nanti.`
       );
       setProducts([]);
     } finally {
@@ -145,21 +145,21 @@ const Product = () => {
   const handleDeleteProduct = async (id, productName) => {
     try {
       const result = await Swal.fire({
-        title: "Are you sure?",
-        text: `You are about to delete "${productName}". This action cannot be undone!`,
+        title: "Apakah Anda yakin?",
+        text: `Anda akan menghapus produk "${productName}". Tindakan ini tidak dapat dibatalkan!`,
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#d33",
         cancelButtonColor: "#3085d6",
-        confirmButtonText: "Yes, delete it!",
-        cancelButtonText: "Cancel",
+        confirmButtonText: "Ya, hapus!",
+        cancelButtonText: "Batal",
         reverseButtons: true,
       });
 
       if (result.isConfirmed) {
         Swal.fire({
-          title: "Deleting...",
-          text: "Please wait while we delete the product",
+          title: "Menghapus...",
+          text: "Harap tunggu sedang menghapus produk",
           allowOutsideClick: false,
           showConfirmButton: false,
           willOpen: () => {
@@ -174,8 +174,8 @@ const Product = () => {
         });
 
         await Swal.fire({
-          title: "Deleted!",
-          text: "The product has been deleted successfully.",
+          title: "Terhapus!",
+          text: "Produk berhasil dihapus.",
           icon: "success",
           timer: 2000,
           showConfirmButton: false,
@@ -184,19 +184,19 @@ const Product = () => {
         fetchProducts();
       }
     } catch (err) {
-      console.error("Error deleting product:", err);
+      console.error("Gagal menghapus produk:", err);
       await Swal.fire({
         title: "Error!",
-        text: `Failed to delete product: ${
+        text: `Gagal menghapus produk: ${
           err.response?.data?.message || err.message
-        }. Please try again.`,
+        }. Silakan coba lagi.`,
         icon: "error",
         confirmButtonText: "OK",
       });
       setError(
-        `Failed to delete product: ${
+        `Gagal menghapus produk: ${
           err.response?.data?.message || err.message
-        }. Please try again.`
+        }. Silakan coba lagi.`
       );
     }
   };
@@ -213,8 +213,16 @@ const Product = () => {
   };
 
   const getCategoryName = (category) => {
-    if (!category) return "No Category";
+    if (!category) return "Tanpa Kategori";
     return typeof category === "object" ? category.name : category;
+  };
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(value);
   };
 
   return (
@@ -222,9 +230,9 @@ const Product = () => {
       <CRow>
         <CCol>
           <CBreadcrumb className="mb-3">
-            <CBreadcrumbItem href="/dashboard">Home</CBreadcrumbItem>
-            <CBreadcrumbItem>Product Management</CBreadcrumbItem>
-            <CBreadcrumbItem active>Product List</CBreadcrumbItem>
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem>Manajemen Produk</CBreadcrumbItem>
+            <CBreadcrumbItem active>Daftar Produk</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
       </CRow>
@@ -233,14 +241,14 @@ const Product = () => {
         <CCol xs={12}>
           <CCard className="mb-4">
             <CCardHeader>
-              <h5>Product List</h5>
+              <h5>Daftar Produk</h5>
             </CCardHeader>
             <CCardBody>
               <CRow className="mb-3">
                 <CCol sm={12} md={6} className="mb-2 mb-md-0">
                   <CInputGroup>
                     <CFormInput
-                      placeholder="Search by name..."
+                      placeholder="Cari berdasarkan nama..."
                       value={search}
                       onChange={handleSearchChange}
                     />
@@ -255,7 +263,7 @@ const Product = () => {
                     onChange={handleCategoryChange}
                     disabled={categoriesLoading}
                   >
-                    <option value="">All Categories</option>
+                    <option value="">Semua Kategori</option>
                     {categories.map((category) => (
                       <option key={category._id} value={category._id}>
                         {category.name}
@@ -266,7 +274,7 @@ const Product = () => {
                 <CCol sm={12} md={3} className="d-flex justify-content-md-end">
                   <CButtonGroup>
                     <CButton color="primary" onClick={handleAddProduct}>
-                      <CIcon icon={cilPlus} className="me-1" /> Add
+                      <CIcon icon={cilPlus} className="me-1" /> Tambah
                     </CButton>
                     <CButton color="secondary" onClick={handleRefresh}>
                       <CIcon icon={cilReload} />
@@ -295,13 +303,13 @@ const Product = () => {
                     <CTableHead color="light">
                       <CTableRow>
                         <CTableHeaderCell scope="col">No</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Name</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Nama</CTableHeaderCell>
                         <CTableHeaderCell scope="col">
-                          Category
+                          Kategori
                         </CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Stock</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Price</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Actions</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Stok</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Harga</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Aksi</CTableHeaderCell>
                       </CTableRow>
                     </CTableHead>
                     <CTableBody>
@@ -325,10 +333,7 @@ const Product = () => {
                               </CBadge>
                             </CTableDataCell>
                             <CTableDataCell>
-                              {new Intl.NumberFormat("id-ID", {
-                                style: "currency",
-                                currency: "IDR",
-                              }).format(product.price)}
+                              {formatCurrency(product.price)}
                             </CTableDataCell>
                             <CTableDataCell>
                               <CButtonGroup size="sm">
@@ -358,7 +363,7 @@ const Product = () => {
                       ) : (
                         <CTableRow>
                           <CTableDataCell colSpan="6" className="text-center">
-                            No products found
+                            Tidak ada produk ditemukan
                           </CTableDataCell>
                         </CTableRow>
                       )}
@@ -366,12 +371,12 @@ const Product = () => {
                   </CTable>
 
                   {totalPages > 1 && (
-                    <CPagination align="end" aria-label="Page navigation">
+                    <CPagination align="end" aria-label="Navigasi halaman">
                       <CPaginationItem
                         disabled={currentPage === 1}
                         onClick={() => setCurrentPage(currentPage - 1)}
                       >
-                        Previous
+                        Sebelumnya
                       </CPaginationItem>
 
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map(
@@ -390,16 +395,16 @@ const Product = () => {
                         disabled={currentPage === totalPages}
                         onClick={() => setCurrentPage(currentPage + 1)}
                       >
-                        Next
+                        Selanjutnya
                       </CPaginationItem>
                     </CPagination>
                   )}
 
                   <div className="text-medium-emphasis small">
-                    Showing{" "}
-                    {filteredProducts.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
-                    {Math.min(indexOfLastItem, filteredProducts.length)} of{" "}
-                    {filteredProducts.length} entries
+                    Menampilkan{" "}
+                    {filteredProducts.length > 0 ? indexOfFirstItem + 1 : 0}{" "}
+                    sampai {Math.min(indexOfLastItem, filteredProducts.length)}{" "}
+                    dari {filteredProducts.length} data
                   </div>
                 </>
               )}

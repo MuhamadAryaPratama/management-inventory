@@ -33,8 +33,6 @@ const Transaction = new mongoose.Schema({
     required: [true, "Stock change is required"],
     validate: {
       validator: function (value) {
-        // For pembelian (stock in), stockChange should be positive
-        // For penjualan (stock out), stockChange should be negative
         if (this.type === "pembelian") {
           return value > 0;
         } else if (this.type === "penjualan") {
@@ -85,29 +83,24 @@ const Transaction = new mongoose.Schema({
   },
 });
 
-// Pre-save middleware to calculate total and validate stock changes
+// Pre-save middleware
 Transaction.pre("save", function (next) {
-  // Calculate total for any transaction with price and quantity
   if (this.price && this.quantity) {
     this.total = this.quantity * this.price;
   }
 
-  // Validate stock change consistency
   if (this.type === "pembelian") {
-    // For purchases (stock in), new stock should be higher
     if (this.newStock !== this.previousStock + this.quantity) {
       return next(
         new Error("Stock calculation error for purchase transaction")
       );
     }
   } else if (this.type === "penjualan") {
-    // For sales (stock out), new stock should be lower
     if (this.newStock !== this.previousStock - this.quantity) {
       return next(new Error("Stock calculation error for sale transaction"));
     }
   }
 
-  // Set updatedAt if document is being modified
   if (this.isModified() && !this.isNew) {
     this.updatedAt = new Date();
   }
@@ -115,9 +108,8 @@ Transaction.pre("save", function (next) {
   next();
 });
 
-// Pre-validate middleware for additional checks
+// Pre-validate middleware
 Transaction.pre("validate", function (next) {
-  // Ensure stock change matches transaction type
   if (this.type === "pembelian" && this.stockChange <= 0) {
     return next(
       new Error("Stock change must be positive for purchase transactions")
@@ -133,7 +125,7 @@ Transaction.pre("validate", function (next) {
   next();
 });
 
-// Add indexes for better performance
+// Indexes
 Transaction.index({ product: 1, createdAt: -1 });
 Transaction.index({ user: 1, createdAt: -1 });
 Transaction.index({ type: 1, createdAt: -1 });
@@ -141,10 +133,20 @@ Transaction.index({ product: 1, type: 1 });
 Transaction.index({ createdAt: -1 });
 Transaction.index({ createdBy: 1 });
 
-// Virtual for transaction description
+// Virtual for transaction description - with null check
 Transaction.virtual("description").get(function () {
   const typeDesc = this.type === "pembelian" ? "Barang Masuk" : "Barang Keluar";
-  const productName = this.populated("product") ? this.product.name : "Product";
+  let productName = "Product";
+
+  // Check if product is populated or exists
+  if (this.product) {
+    if (typeof this.product === "object" && this.product.name) {
+      productName = this.product.name;
+    } else if (typeof this.product === "string") {
+      productName = "Product ID: " + this.product;
+    }
+  }
+
   return `${typeDesc} - ${productName} (${this.quantity} unit)`;
 });
 
@@ -178,6 +180,42 @@ Transaction.set("toJSON", {
 
 Transaction.set("toObject", {
   virtuals: true,
+});
+
+// Add schema post-find hook to validate product existence
+Transaction.post("find", async function (docs) {
+  if (!Array.isArray(docs)) return;
+
+  const Product = mongoose.model("Products");
+  const existingProductIds = new Set();
+
+  // Check which products still exist
+  for (const doc of docs) {
+    if (doc.product && !existingProductIds.has(doc.product.toString())) {
+      const productExists = await Product.exists({ _id: doc.product });
+      if (!productExists) {
+        // If product doesn't exist, delete the transaction
+        await this.model.deleteMany({ product: doc.product });
+        console.log(
+          `Deleted transactions for non-existent product ${doc.product}`
+        );
+      } else {
+        existingProductIds.add(doc.product.toString());
+      }
+    }
+  }
+});
+
+// Add pre-save validation to check product existence
+Transaction.pre("save", async function (next) {
+  if (this.product) {
+    const Product = mongoose.model("Products");
+    const productExists = await Product.exists({ _id: this.product });
+    if (!productExists) {
+      return next(new Error("Product does not exist"));
+    }
+  }
+  next();
 });
 
 export default mongoose.model("Transactions", Transaction);

@@ -25,13 +25,7 @@ import {
   CBreadcrumbItem,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
-import {
-  cilSearch,
-  cilPencil,
-  cilTrash,
-  cilPlus,
-  cilReload,
-} from "@coreui/icons";
+import { cilSearch, cilPencil, cilTrash, cilReload } from "@coreui/icons";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";

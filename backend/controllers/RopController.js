@@ -243,8 +243,11 @@ export const getAllROP = asyncHandler(async (req, res) => {
       })
       .lean();
 
+    // Filter out ROPs where the product doesn't exist anymore
+    const validRops = rops.filter((rop) => rop.product !== null);
+
     // Add needsReorder flag to each ROP
-    const ropsWithStatus = rops.map((rop) => ({
+    const ropsWithStatus = validRops.map((rop) => ({
       ...rop,
       needsReorder: rop.product.currentStock <= rop.rop,
     }));
@@ -473,5 +476,38 @@ export const sendTestROPNotification = asyncHandler(async (req, res) => {
     throw new Error(`Failed to send test notification: ${error.message}`);
   }
 });
+
+// Add this new method
+// export const cleanupOrphanedROP = asyncHandler(async (req, res) => {
+//   try {
+//     const products = await Product.find({}).select("_id");
+//     const productIds = products.map((p) => p._id.toString());
+
+//     const rops = await ROP.find({});
+//     let deletedCount = 0;
+
+//     for (const rop of rops) {
+//       const productId = rop.product.toString();
+//       if (!productIds.includes(productId)) {
+//         await ROP.findByIdAndDelete(rop._id);
+//         deletedCount++;
+//         console.log(`Deleted orphaned ROP for product ${productId}`);
+//       }
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: `Cleaned up ${deletedCount} orphaned ROP records`,
+//       deletedCount,
+//     });
+//   } catch (error) {
+//     console.error("Error cleaning up ROP data:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to clean up orphaned ROP data",
+//       error: error.message,
+//     });
+//   }
+// });
 
 console.log("ROP Controller loaded successfully");

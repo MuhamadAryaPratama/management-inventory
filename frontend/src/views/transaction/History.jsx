@@ -91,11 +91,27 @@ const History = () => {
       if (response.data && response.status === 200) {
         const transactionData = response.data.data || [];
 
-        // Enhance transactions with calculated stock values
+        // Enhance transactions with calculated stock values and handle deleted products
         const enhancedTransactions = transactionData.map((transaction) => {
+          // Handle case where product is deleted
+          if (!transaction.product) {
+            return {
+              ...transaction,
+              product: {
+                _id: transaction.product || "deleted",
+                name: "[Produk Dihapus]",
+                description: "Produk ini telah dihapus dari sistem",
+                price: 0,
+                currentStock: 0,
+              },
+              initialStock: transaction.previousStock || 0,
+              finalStock: transaction.newStock || 0,
+            };
+          }
+
           // Calculate initial and final stock if not provided by backend
-          let initialStock = transaction.initialStock;
-          let finalStock = transaction.finalStock;
+          let initialStock = transaction.previousStock;
+          let finalStock = transaction.newStock;
 
           if (transaction.type === "pembelian") {
             // For incoming goods, final = initial + quantity
@@ -123,6 +139,10 @@ const History = () => {
 
           return {
             ...transaction,
+            product: {
+              ...transaction.product,
+              name: transaction.product?.name || "[Produk Tidak Dikenal]",
+            },
             initialStock,
             finalStock,
           };
@@ -145,7 +165,39 @@ const History = () => {
 
   // Handle API errors
   const handleApiError = (error, defaultMessage) => {
-    // ... (keep existing error handling code)
+    let errorMessage = defaultMessage;
+
+    if (error.response) {
+      // Server responded with a status code outside 2xx
+      if (error.response.data && error.response.data.msg) {
+        errorMessage = error.response.data.msg;
+      } else if (error.response.status === 401) {
+        errorMessage = "Sesi telah berakhir. Silakan login kembali.";
+        // Redirect to login if token is invalid
+        localStorage.removeItem("token");
+        localStorage.removeItem("userToken");
+        window.location.href = "/login";
+      } else if (error.response.status === 404) {
+        errorMessage = "Data tidak ditemukan";
+      } else if (error.response.status === 500) {
+        errorMessage = "Terjadi kesalahan server";
+      }
+    } else if (error.request) {
+      // No response received
+      errorMessage = "Tidak ada respon dari server. Cek koneksi internet Anda.";
+    }
+
+    setAlert({
+      show: true,
+      message: errorMessage,
+      color: "danger",
+    });
+
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: errorMessage,
+    });
   };
 
   // Filter transactions based on active tab and filters
@@ -162,7 +214,9 @@ const History = () => {
       filtered = filtered.filter(
         (t) =>
           t.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          t.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+          t.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (t.product?.name === "[Produk Dihapus]" &&
+            "[produk dihapus]".includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -325,7 +379,7 @@ const History = () => {
                       <h4 className="text-info">
                         {stats.incomingQty - stats.outgoingQty}
                       </h4>
-                      <small className="text-muted">Net Movement</small>
+                      <small className="text-muted">Perubahan Bersih</small>
                     </CCardBody>
                   </CCard>
                 </CCol>
@@ -473,10 +527,8 @@ const History = () => {
                               {formatDate(transaction.createdAt)}
                             </CTableDataCell>
                             <CTableDataCell>
-                              {transaction.product?.name || "N/A"}
-                              <div className="small text-muted">
-                                {transaction.product?.code || "N/A"}
-                              </div>
+                              {transaction.product?.name ||
+                                "[Produk Tidak Dikenal]"}
                             </CTableDataCell>
                             <CTableDataCell>
                               <CBadge color={typeDisplay.color}>
@@ -520,13 +572,13 @@ const History = () => {
                         disabled={currentPage === 1}
                         onClick={() => setCurrentPage(1)}
                       >
-                        First
+                        Pertama
                       </CPaginationItem>
                       <CPaginationItem
                         disabled={currentPage === 1}
                         onClick={() => setCurrentPage(currentPage - 1)}
                       >
-                        Previous
+                        Sebelumnya
                       </CPaginationItem>
 
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map(
@@ -545,13 +597,13 @@ const History = () => {
                         disabled={currentPage === totalPages}
                         onClick={() => setCurrentPage(currentPage + 1)}
                       >
-                        Next
+                        Selanjutnya
                       </CPaginationItem>
                       <CPaginationItem
                         disabled={currentPage === totalPages}
                         onClick={() => setCurrentPage(totalPages)}
                       >
-                        Last
+                        Terakhir
                       </CPaginationItem>
                     </CPagination>
                   )}

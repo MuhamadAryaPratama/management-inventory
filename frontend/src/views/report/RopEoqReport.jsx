@@ -24,12 +24,6 @@ import {
   CModalTitle,
   CPagination,
   CPaginationItem,
-  CFormSelect,
-  CNav,
-  CNavItem,
-  CNavLink,
-  CTabContent,
-  CTabPane,
   CDropdown,
   CDropdownToggle,
   CDropdownMenu,
@@ -58,34 +52,35 @@ const Report = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  // Tab states
-  const [activeTab, setActiveTab] = useState("summary");
-
-  // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredData, setFilteredData] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
-  const [reportFilter, setReportFilter] = useState("all"); // all, critical, warning, optimal
-
-  // Pagination states
+  const [reportFilter, setReportFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(15);
-
-  // Modal states
+  const [itemsPerPage] = useState(10);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => {
     fetchAllData();
+    // cleanupOrphanedData();
   }, []);
 
   useEffect(() => {
     combineAndFilterData();
-  }, [eoqData, ropData, searchTerm, sortConfig, reportFilter]);
+  }, [
+    eoqData,
+    ropData,
+    products,
+    categories,
+    searchTerm,
+    sortConfig,
+    reportFilter,
+  ]);
 
   const fetchAllData = async () => {
     setLoading(true);
+    setError("");
     try {
       await Promise.all([
         fetchEoqData(),
@@ -93,10 +88,11 @@ const Report = () => {
         fetchProducts(),
         fetchCategories(),
       ]);
-      // setSuccess("Data berhasil dimuat");
+      setSuccess("Data berhasil dimuat");
+      setTimeout(() => setSuccess(""), 3000);
     } catch (error) {
       console.error("Error fetching data:", error);
-      setError("Gagal memuat data");
+      setError("Gagal memuat data: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -108,10 +104,10 @@ const Report = () => {
       const response = await axios.get("http://localhost:5000/api/eoq", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setEoqData(response.data.data || response.data || []);
+      setEoqData(response.data || []);
     } catch (error) {
       console.error("Error fetching EOQ data:", error);
-      throw new Error("Gagal memuat data EOQ");
+      throw error;
     }
   };
 
@@ -121,10 +117,10 @@ const Report = () => {
       const response = await axios.get("http://localhost:5000/api/rop", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setRopData(response.data.data || response.data || []);
+      setRopData(response.data || []);
     } catch (error) {
       console.error("Error fetching ROP data:", error);
-      throw new Error("Gagal memuat data ROP");
+      throw error;
     }
   };
 
@@ -134,10 +130,10 @@ const Report = () => {
       const response = await axios.get("http://localhost:5000/api/products", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setProducts(response.data.data || response.data || []);
+      setProducts(response.data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
-      throw new Error("Gagal memuat data produk");
+      throw error;
     }
   };
 
@@ -147,19 +143,42 @@ const Report = () => {
       const response = await axios.get("http://localhost:5000/api/categories", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCategories(response.data.data || response.data || []);
+      setCategories(response.data || []);
     } catch (error) {
       console.error("Error fetching categories:", error);
-      throw new Error("Gagal memuat data kategori");
+      throw error;
     }
   };
 
-  // Helper functions
+  // const cleanupOrphanedData = async () => {
+  //   try {
+  //     const token = localStorage.getItem("userToken");
+  //     await axios.post(
+  //       "http://localhost:5000/api/eoq/cleanup",
+  //       {},
+  //       {
+  //         headers: { Authorization: `Bearer ${token}` },
+  //       }
+  //     );
+  //     await axios.post(
+  //       "http://localhost:5000/api/rop/cleanup",
+  //       {},
+  //       {
+  //         headers: { Authorization: `Bearer ${token}` },
+  //       }
+  //     );
+  //     console.log("Orphaned data cleanup completed");
+  //   } catch (error) {
+  //     console.error("Error cleaning up orphaned data:", error);
+  //   }
+  // };
+
   const getProductWithCategory = (productId) => {
+    if (!productId) return null;
+
     const product = products.find(
       (p) => p._id === productId || p.id === productId
     );
-
     if (!product) return null;
 
     let categoryData = null;
@@ -181,68 +200,72 @@ const Report = () => {
 
   const getCategoryName = (productId) => {
     const productWithCategory = getProductWithCategory(productId);
-    if (!productWithCategory || !productWithCategory.category) {
-      return "Tidak ada kategori";
-    }
-    const category = productWithCategory.category;
-    return typeof category === "object" ? category.name : category;
+    return productWithCategory?.category?.name || "Tidak ada kategori";
   };
 
   const getProductName = (productId) => {
     const product = products.find(
       (p) => p._id === productId || p.id === productId
     );
-    return product?.name || "N/A";
+    return product?.name || "Produk tidak ditemukan";
   };
 
-  const getCurrentStock = (product) => {
-    if (!product) return 0;
-    return product.currentStock !== undefined
-      ? product.currentStock
-      : product.stock || 0;
+  const getCurrentStock = (productId) => {
+    const product = products.find(
+      (p) => p._id === productId || p.id === productId
+    );
+    return product?.currentStock || 0;
   };
 
-  // Combine EOQ and ROP data
   const combineAndFilterData = () => {
     const combinedData = [];
 
+    // Create a map of product IDs to their ROP data for faster lookup
+    const ropMap = new Map();
+    ropData.forEach((rop) => {
+      const productId = rop.product?._id || rop.product;
+      if (productId) {
+        ropMap.set(productId.toString(), rop);
+      }
+    });
+
     // Process EOQ data
     eoqData.forEach((eoq) => {
-      const productId =
-        eoq.productId || eoq.product_id || eoq.product?.id || eoq.product?._id;
-      const product = products.find((p) => p._id === productId);
-      const ropItem = ropData.find((rop) => {
-        const ropProductId =
-          rop.product?._id || rop.productId || rop.product_id;
-        return ropProductId === productId;
-      });
+      const productId = eoq.product?._id || eoq.product;
+      const product = getProductWithCategory(productId);
 
-      const currentStock = getCurrentStock(product);
-      const productName = getProductName(productId);
-      const categoryName = getCategoryName(productId);
+      // Skip if product doesn't exist
+      if (!product) {
+        // console.log(`Skipping EOQ for deleted product: ${productId}`);
+        return;
+      }
 
-      // Calculate statuses
+      const ropItem = ropMap.get(productId.toString());
+      const currentStock = product.currentStock || 0;
+      const productName = product.name || "N/A";
+      const categoryName = product.category?.name || "Tidak ada kategori";
+
+      // Calculate EOQ status
       const eoqStatus = getEoqStatus(eoq.eoq, eoq.orderFrequency);
+
+      // Calculate ROP status
       const ropStatus = ropItem
         ? getRopStatus(ropItem, currentStock)
         : { status: "no-data", label: "Tidak ada data", color: "secondary" };
 
-      // Overall status priority: critical > warning > optimal
+      // Determine overall status
       let overallStatus = "optimal";
       let overallColor = "success";
-
-      if (
-        eoqStatus.color === "warning" ||
-        ropStatus.color === "warning" ||
-        ropStatus.color === "danger"
-      ) {
-        overallStatus = "warning";
-        overallColor = "warning";
-      }
 
       if (ropStatus.color === "danger") {
         overallStatus = "critical";
         overallColor = "danger";
+      } else if (
+        ropStatus.color === "warning" ||
+        eoqStatus.color === "warning"
+      ) {
+        overallStatus = "warning";
+        overallColor = "warning";
       }
 
       combinedData.push({
@@ -252,7 +275,6 @@ const Report = () => {
         productName,
         categoryName,
         currentStock,
-        // EOQ data
         eoq: eoq.eoq,
         orderFrequency: eoq.orderFrequency,
         totalCost: eoq.totalCost,
@@ -261,13 +283,11 @@ const Report = () => {
         annualDemand: eoq.annualDemand,
         eoqStatus,
         eoqLastCalculated: eoq.lastCalculated,
-        // ROP data
         rop: ropItem?.rop || null,
         leadTime: ropItem?.leadTime || null,
         dailyDemand: ropItem?.dailyDemand || null,
         ropStatus,
         ropLastCalculated: ropItem?.lastCalculated || null,
-        // Overall status
         overallStatus,
         overallColor,
       });
@@ -374,7 +394,6 @@ const Report = () => {
     });
   };
 
-  // Statistics calculations
   const getStatistics = () => {
     const total = filteredData.length;
     const critical = filteredData.filter(
@@ -397,14 +416,7 @@ const Report = () => {
           filteredData.length
         : 0;
 
-    return {
-      total,
-      critical,
-      warning,
-      optimal,
-      totalEoqCost,
-      averageEoq,
-    };
+    return { total, critical, warning, optimal, totalEoqCost, averageEoq };
   };
 
   const stats = getStatistics();
@@ -416,7 +428,6 @@ const Report = () => {
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const handleExportData = () => {
-    // Simple CSV export
     const csvData = [
       [
         "No",
@@ -482,7 +493,7 @@ const Report = () => {
                   disabled={loading}
                 >
                   <CIcon icon={cilReload} className="me-1" />
-                  Refresh
+                  {loading ? "Memuat..." : "Refresh"}
                 </CButton>
               </div>
             </CCardHeader>
@@ -679,7 +690,7 @@ const Report = () => {
                     <CTableBody>
                       {currentItems.length > 0 ? (
                         currentItems.map((item, index) => (
-                          <CTableRow key={item.id}>
+                          <CTableRow key={`${item.id}-${index}`}>
                             <CTableDataCell>
                               {indexOfFirstItem + index + 1}
                             </CTableDataCell>
@@ -1034,8 +1045,8 @@ const Report = () => {
                       <CAlert color="warning">
                         <CIcon icon={cilInfo} className="me-2" />
                         <strong>Perhatian!</strong> Produk ini membutuhkan
-                        perhatian. Stok saat ini ({selectedItem.currentStock}{" "}
-                        unit) mendekati titik ROP ({Math.ceil(selectedItem.rop)}{" "}
+                        perhatian. Stok saat ini ({selectedItem.currentStock}
+                        unit) mendekati titik ROP ({Math.ceil(selectedItem.rop)}
                         unit). Pertimbangkan untuk melakukan pemesanan.
                       </CAlert>
                     )}
@@ -1044,7 +1055,7 @@ const Report = () => {
                       <CAlert color="success">
                         <CIcon icon={cilCheckCircle} className="me-2" />
                         <strong>Status Optimal!</strong> Produk ini dalam
-                        kondisi baik. Stok saat ini ({selectedItem.currentStock}{" "}
+                        kondisi baik. Stok saat ini ({selectedItem.currentStock}
                         unit) masih aman di atas titik ROP (
                         {Math.ceil(selectedItem.rop)} unit).
                       </CAlert>

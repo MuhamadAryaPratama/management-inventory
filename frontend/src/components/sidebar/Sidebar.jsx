@@ -19,7 +19,6 @@ import {
   cilChart,
   cilUser,
   cilLibraryAdd,
-  cilTask,
   cilStar,
 } from "@coreui/icons";
 import { CNavGroup, CNavItem, CNavTitle } from "@coreui/react";
@@ -65,7 +64,7 @@ const Sidebar = [
       {
         component: CNavItem,
         name: "Data Supplier",
-        to: "/suplier/suppliers",
+        to: "/supplier/suppliers",
         icon: <CIcon icon={cilFactory} customClassName="nav-icon" />,
       },
     ],

@@ -15,14 +15,12 @@ import {
   CSpinner,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
-import { cilLockLocked, cilUser, cilPhone, cilHome } from "@coreui/icons";
+import { cilLockLocked, cilUser } from "@coreui/icons";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { setTokenWithExpiry } from "../components/utils/SessionTimeout";
 
 const Login = () => {
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,8 +35,7 @@ const Login = () => {
         message: location.state.message,
         type: location.state.alertType || "info",
       });
-
-      // Clear the state to prevent showing the message again on page refresh
+      // Clear the state to prevent showing the message again on refresh
       window.history.replaceState({}, document.title);
     }
   }, [location]);
@@ -57,19 +54,21 @@ const Login = () => {
     setError("");
 
     try {
-      // Basic validation
+      // Enhanced validation
       if (!email.trim() || !password.trim()) {
         throw new Error("Email and password are required");
       }
 
-      // Call login API - only send email and password
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
-        credentials: "include", // Important: Include cookies for refresh token
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+        credentials: "include",
       });
 
       const data = await response.json();
@@ -78,10 +77,10 @@ const Login = () => {
         throw new Error(data.message || "Login failed");
       }
 
-      // Store token with expiry time
+      // Store token with expiry
       setTokenWithExpiry(data.token);
 
-      // Store user data
+      // Store complete user data
       const userData = {
         _id: data.user._id,
         name: data.user.name,
@@ -92,14 +91,11 @@ const Login = () => {
       };
 
       localStorage.setItem("userData", JSON.stringify(userData));
-
-      // Store role separately for easy access
       localStorage.setItem("userRole", data.user.role);
 
-      // Dispatch event to notify other components
+      // Dispatch event to notify session timeout handler
       window.dispatchEvent(new Event("userLoggedIn"));
 
-      // Redirect to dashboard
       navigate("/dashboard");
     } catch (err) {
       console.error("Login error:", err);
@@ -149,32 +145,7 @@ const Login = () => {
                         required
                       />
                     </CInputGroup>
-                    <CInputGroup className="mb-3">
-                      <CInputGroupText>
-                        <CIcon icon={cilPhone} />
-                      </CInputGroupText>
-                      <CFormInput
-                        placeholder="Phone"
-                        autoComplete="phone"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        disabled={loading}
-                        required
-                      />
-                    </CInputGroup>
-                    <CInputGroup className="mb-3">
-                      <CInputGroupText>
-                        <CIcon icon={cilHome} />
-                      </CInputGroupText>
-                      <CFormInput
-                        placeholder="Address"
-                        autoComplete="address"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        disabled={loading}
-                        required
-                      />
-                    </CInputGroup>
+
                     <CInputGroup className="mb-4">
                       <CInputGroupText>
                         <CIcon icon={cilLockLocked} />
@@ -189,6 +160,7 @@ const Login = () => {
                         required
                       />
                     </CInputGroup>
+
                     <CRow>
                       <CCol xs={6}>
                         <CButton

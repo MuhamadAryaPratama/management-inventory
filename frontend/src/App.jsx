@@ -11,8 +11,12 @@ import Dashboard from "./views/Dashboard";
 import Product from "./views/products/Product";
 import AddProduct from "./views/products/AddProduct";
 import IncomingGoods from "./views/transaction/IncomingGoods";
-import Category from "./views/category/Category";
+import CategoriesList from "./views/category/CategoriesList";
+import AddCategory from "./views/category/AddCategory";
+import EditCategory from "./views/category/EditCategory";
 import Supplier from "./views/supplier/Supplier";
+import AddSupplier from "./views/supplier/AddSupplier";
+import EditSupplier from "./views/supplier/EditSupplier";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -35,6 +39,7 @@ import StockReport from "./views/report/StockReport";
 import TransactionReport from "./views/report/TransactionReport";
 import RopEoqReport from "./views/report/RopEoqReport";
 import ProductLog from "./views/log/ProductLog";
+import TransactionLog from "./views/log/TransactionLog";
 
 function App() {
   return (
@@ -61,13 +66,28 @@ function App() {
               path="/product-management/edit/:id"
               element={<EditProduct />}
             />
+
+            {/* Category Management Routes */}
             <Route
               path="/product-management/categories"
-              element={<Category />}
+              element={<CategoriesList />}
+            />
+            <Route
+              path="/product-management/categories/add"
+              element={<AddCategory />}
+            />
+            <Route
+              path="/product-management/categories/edit/:id"
+              element={<EditCategory />}
             />
 
             {/* Supplier Management Routes */}
-            <Route path="/suplier/suppliers" element={<Supplier />} />
+            <Route path="/supplier/suppliers" element={<Supplier />} />
+            <Route path="/supplier/suppliers/add" element={<AddSupplier />} />
+            <Route
+              path="/supplier/suppliers/edit/:id"
+              element={<EditSupplier />}
+            />
 
             {/* Profile Routes */}
             <Route path="/profile" element={<Profile />} />
@@ -173,6 +193,14 @@ function App() {
               element={
                 <RoleBasedRoute allowedRoles={["pemilik"]}>
                   <ProductLog />
+                </RoleBasedRoute>
+              }
+            />
+            <Route
+              path="/logs/transactions"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <TransactionLog />
                 </RoleBasedRoute>
               }
             />

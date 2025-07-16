@@ -3,6 +3,9 @@ import Product from "../models/ProductModel.js";
 import asyncHandler from "express-async-handler";
 import mongoose from "mongoose";
 
+// Import email service functions for low stock notifications
+import { checkAndNotifyLowStock } from "../service/productEmailService.js";
+
 // @desc    Get all transactions (transaction history)
 // @route   GET /api/transactions
 // @access  Private
@@ -15,16 +18,26 @@ export const getTransactions = asyncHandler(async (req, res) => {
     query.$or = [{ createdBy: req.user.id }, { user: req.user.id }];
   }
 
+  // Add filter to only include transactions with existing products
+  query.product = { $exists: true, $ne: null };
+
   const transactions = await Transaction.find(query)
-    .populate("product", "name description price currentStock")
+    .populate({
+      path: "product",
+      select: "name description price currentStock",
+      match: { deletedAt: { $exists: false } }, // Only populate if product is not soft-deleted
+    })
     .populate("user", "name role")
     .populate("createdBy", "name")
     .sort("-createdAt");
 
+  // Filter out transactions where product is null (either deleted or not found)
+  const validTransactions = transactions.filter((t) => t.product !== null);
+
   res.status(200).json({
     success: true,
-    count: transactions.length,
-    data: transactions,
+    count: validTransactions.length,
+    data: validTransactions,
   });
 });
 
@@ -236,7 +249,10 @@ export const addStockOut = asyncHandler(async (req, res) => {
   }
 
   // Check if product exists
-  const product = await Product.findById(productId);
+  const product = await Product.findById(productId)
+    .populate("category", "name description")
+    .populate("supplier", "name contact phone address");
+
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
@@ -303,7 +319,9 @@ export const addStockOut = asyncHandler(async (req, res) => {
         updatedAt: new Date(),
       },
       { new: true }
-    );
+    )
+      .populate("category", "name description")
+      .populate("supplier", "name contact phone address");
 
     if (!updatedProduct) {
       await Transaction.findByIdAndDelete(transaction._id);
@@ -311,13 +329,50 @@ export const addStockOut = asyncHandler(async (req, res) => {
       throw new Error("Failed to update product stock");
     }
 
+    // Check for low stock after stock-out transaction
+    let lowStockWarning = null;
+    try {
+      // Check if new stock is at or below minimum stock
+      if (newStock <= product.minStock) {
+        // Create a product object with updated stock for notification
+        const productForNotification = {
+          ...product.toObject(),
+          currentStock: newStock,
+        };
+
+        // Send low stock notification to users with "pemilik" role
+        await checkAndNotifyLowStock(productForNotification);
+
+        lowStockWarning = {
+          isLowStock: true,
+          currentStock: newStock,
+          minStock: product.minStock,
+          message: `Warning: Stock for "${product.name}" is now ${newStock} units, which is at or below the minimum stock level of ${product.minStock} units. Low stock notification has been sent to the owner.`,
+        };
+
+        console.log(
+          `Low stock notification sent for product: ${product.name} (Current: ${newStock}, Min: ${product.minStock})`
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending low stock notification:", notificationError);
+      // Don't fail the transaction if notification fails
+      lowStockWarning = {
+        isLowStock: true,
+        currentStock: newStock,
+        minStock: product.minStock,
+        message: `Warning: Stock for "${product.name}" is now ${newStock} units, which is at or below the minimum stock level of ${product.minStock} units. However, there was an error sending the notification.`,
+        notificationError: "Failed to send low stock notification",
+      };
+    }
+
     // Populate the response
     const populatedTransaction = await Transaction.findById(transaction._id)
-      .populate("product", "name description price currentStock")
+      .populate("product", "name description price currentStock minStock")
       .populate("user", "name role")
       .populate("createdBy", "name");
 
-    res.status(201).json({
+    const response = {
       success: true,
       message: "Stock removed successfully",
       data: populatedTransaction,
@@ -328,7 +383,14 @@ export const addStockOut = asyncHandler(async (req, res) => {
         saleValue: total,
         priceUsed: salePrice,
       },
-    });
+    };
+
+    // Add low stock warning to response if applicable
+    if (lowStockWarning) {
+      response.lowStockWarning = lowStockWarning;
+    }
+
+    res.status(201).json(response);
   } catch (error) {
     console.error("Remove stock error:", error);
     res.status(500);

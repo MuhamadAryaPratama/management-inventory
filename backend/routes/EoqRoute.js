@@ -4,6 +4,7 @@ import {
   calculateEOQ,
   getProductEOQ,
   getAllEOQ,
+  // cleanupOrphanedEOQ,
 } from "../controllers/EoqController.js";
 import asyncHandler from "express-async-handler";
 
@@ -15,5 +16,9 @@ router
   .get(protect, role("pemilik"), asyncHandler(getAllEOQ));
 
 router.route("/product/:productId").get(protect, asyncHandler(getProductEOQ));
+
+// router
+//   .route("/eoq/cleanup")
+//   .post(protect, role("pemilik"), asyncHandler(cleanupOrphanedEOQ));
 
 export default router;

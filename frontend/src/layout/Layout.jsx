@@ -13,6 +13,7 @@ import { cilMenu } from "@coreui/icons";
 import { AppHeaderDropdown } from "../components/header";
 import SidebarContent from "../components/sidebar/SidebarContent";
 import { Outlet } from "react-router-dom";
+import SessionTimeoutHandler from "../components/SessionTimeoutHandler";
 
 const Layout = () => {
   const [sidebarShow, setSidebarShow] = useState(true);
@@ -38,14 +39,7 @@ const Layout = () => {
 
   return (
     <div className="d-flex">
-      {/* Mobile overlay to close sidebar when clicked outside */}
-      {sidebarShow && isMobile && (
-        <div
-          className="sidebar-overlay"
-          onClick={() => setSidebarShow(false)}
-        />
-      )}
-
+      <SessionTimeoutHandler />
       {/* Sidebar */}
       <CSidebar
         position="fixed"

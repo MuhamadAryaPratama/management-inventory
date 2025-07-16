@@ -91,9 +91,16 @@ const CalculatorEoq = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    // Untuk field yang harus integer, hilangkan desimal
+    let processedValue = value;
+    if (name === "annualDemand") {
+      processedValue = value.replace(/[^0-9]/g, "");
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: processedValue,
     }));
 
     // Clear previous results when input changes
@@ -196,8 +203,7 @@ const CalculatorEoq = () => {
   const formatNumber = (number) => {
     if (!number || isNaN(number)) return "0";
     return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 0, // Ubah dari 2 menjadi 0 untuk integer
     }).format(number);
   };
 
@@ -362,6 +368,7 @@ const CalculatorEoq = () => {
                       placeholder="0"
                       min="1"
                       step="1"
+                      pattern="[0-9]*" // Hanya angka yang diperbolehkan
                     />
                     <small className="text-muted">
                       Jumlah unit yang dibutuhkan dalam satu tahun
@@ -484,7 +491,8 @@ const CalculatorEoq = () => {
                             <strong>EOQ (Unit Optimal)</strong>
                           </CTableDataCell>
                           <CTableDataCell className="text-primary fw-bold">
-                            {formatNumber(result.eoq)} unit
+                            {formatNumber(result.eoq)} unit{" "}
+                            {/* Akan menampilkan tanpa desimal */}
                           </CTableDataCell>
                         </CTableRow>
                         <CTableRow>

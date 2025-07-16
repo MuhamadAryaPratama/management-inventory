@@ -15,12 +15,6 @@ import {
   CNav,
   CNavItem,
   CNavLink,
-  CTable,
-  CTableHead,
-  CTableRow,
-  CTableHeaderCell,
-  CTableBody,
-  CTableDataCell,
 } from "@coreui/react";
 import {
   RefreshCw,
@@ -30,18 +24,18 @@ import {
   BarChart3,
   AlertTriangle,
   CheckCircle,
-  Package,
-  Plus,
-  FileText,
   ArrowUpCircle,
   ArrowDownCircle,
   Activity,
   Calendar,
   Clock,
   DollarSign,
+  Package,
 } from "lucide-react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import ProductDashboard from "../components/dashboard/Product";
+import TransactionDashboard from "../components/dashboard/Transaction";
 
 const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState({
@@ -115,7 +109,10 @@ const Dashboard = () => {
         0
       ),
       lowStockProducts: currentProducts.filter(
-        (product) => product.currentStock > 0 && product.currentStock < 10
+        (product) =>
+          product.currentStock > 0 &&
+          product.minStock > 0 &&
+          product.currentStock <= product.minStock
       ).length,
       outOfStockProducts: currentProducts.filter(
         (product) => product.currentStock <= 0
@@ -125,14 +122,12 @@ const Dashboard = () => {
       averageStock: 0,
     };
 
-    // Calculate average stock
     if (currentProducts.length > 0) {
       stats.averageStock = Math.round(
         stats.totalStock / currentProducts.length
       );
     }
 
-    // Calculate trends if we have previous data
     const trends = {
       productGrowth: 0,
       stockGrowth: 0,
@@ -147,11 +142,13 @@ const Dashboard = () => {
           0
         ),
         lowStockProducts: previousProducts.filter(
-          (product) => product.currentStock > 0 && product.currentStock < 10
+          (product) =>
+            product.currentStock > 0 &&
+            product.minStock > 0 &&
+            product.currentStock <= product.minStock
         ).length,
       };
 
-      // Calculate percentage changes
       trends.productGrowth =
         prevStats.totalProducts > 0
           ? Math.round(
@@ -179,13 +176,11 @@ const Dashboard = () => {
             )
           : 0;
 
-      // Find new products
       const previousIds = new Set(previousProducts.map((p) => p._id));
       stats.newProducts = currentProducts.filter(
         (product) => !previousIds.has(product._id)
       ).length;
 
-      // Calculate stock changes
       const currentProductMap = new Map(
         currentProducts.map((p) => [p._id, p.currentStock || 0])
       );
@@ -206,7 +201,7 @@ const Dashboard = () => {
     return { statistics: stats, trends };
   };
 
-  // Calculate transaction statistics with enhanced real-time data
+  // Calculate transaction statistics
   const calculateTransactionStatistics = (transactions) => {
     const now = new Date();
     const today = new Date();
@@ -220,7 +215,6 @@ const Dashboard = () => {
     thisMonthStart.setDate(1);
     thisMonthStart.setHours(0, 0, 0, 0);
 
-    // Filter transactions by time periods
     const todayTransactions = transactions.filter((t) => {
       const transactionDate = new Date(t.createdAt);
       transactionDate.setHours(0, 0, 0, 0);
@@ -237,7 +231,6 @@ const Dashboard = () => {
       return transactionDate >= thisMonthStart;
     });
 
-    // Categorize transactions
     const incomingTransactions = transactions.filter(
       (t) => t.type === "pembelian"
     );
@@ -245,7 +238,6 @@ const Dashboard = () => {
       (t) => t.type === "penjualan"
     );
 
-    // Calculate quantities
     const totalIncomingQty = incomingTransactions.reduce(
       (sum, t) => sum + (t.quantity || 0),
       0
@@ -255,7 +247,6 @@ const Dashboard = () => {
       0
     );
 
-    // Calculate values (if price data available)
     const totalValue = transactions.reduce(
       (sum, t) => sum + (t.price || 0) * (t.quantity || 0),
       0
@@ -265,7 +256,6 @@ const Dashboard = () => {
       0
     );
 
-    // Calculate average transactions per day
     const daysInMonth = new Date(
       now.getFullYear(),
       now.getMonth() + 1,
@@ -276,7 +266,6 @@ const Dashboard = () => {
         ? Math.round((thisMonthTransactions.length / now.getDate()) * 10) / 10
         : 0;
 
-    // Get recent transactions (last 10 for better real-time view)
     const recentTransactions = transactions
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 10);
@@ -298,18 +287,12 @@ const Dashboard = () => {
     };
   };
 
-  // Helper functions to safely extract string values from objects
+  // Helper functions
   const getProductName = (product) => {
-    if (!product) return "N/A";
-    if (typeof product === "string") return product;
+    if (!product) return "[Produk Dihapus]";
+    if (typeof product === "string") return "[Produk Dihapus]";
     if (typeof product === "object" && product.name) return product.name;
-    return "N/A";
-  };
-
-  const getProductCode = (product) => {
-    if (!product) return "";
-    if (typeof product === "object" && product.code) return product.code;
-    return "";
+    return "[Produk Dihapus]";
   };
 
   const getCategoryName = (category) => {
@@ -326,7 +309,6 @@ const Dashboard = () => {
     try {
       const api = createAxiosInstance();
 
-      // Fetch products and transactions in parallel
       const [productsResponse, transactionsResponse] = await Promise.all([
         api.get("/products"),
         api.get("/transactions"),
@@ -335,7 +317,6 @@ const Dashboard = () => {
       const currentProducts = productsResponse.data || [];
       const transactions = transactionsResponse.data?.data || [];
 
-      // For demo purposes, simulate previous data
       const previousProducts = currentProducts.map((product) => ({
         ...product,
         currentStock: Math.max(
@@ -351,9 +332,8 @@ const Dashboard = () => {
 
       const transactionStats = calculateTransactionStatistics(transactions);
 
-      // Calculate transaction growth trend (simplified)
       const transactionGrowth =
-        transactions.length > 0 ? Math.floor(Math.random() * 20) - 10 : 0; // Mock growth percentage
+        transactions.length > 0 ? Math.floor(Math.random() * 20) - 10 : 0;
 
       setDashboardData({
         currentProducts,
@@ -371,9 +351,9 @@ const Dashboard = () => {
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
       setError(
-        `Failed to load dashboard data: ${
+        `Gagal memuat data dashboard: ${
           err.response?.data?.message || err.message
-        }. Please try again later.`
+        }. Silakan coba lagi nanti.`
       );
     } finally {
       setLoading(false);
@@ -383,7 +363,6 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
 
-    // Set up auto-refresh every 15 seconds for more real-time updates
     const interval = setInterval(fetchDashboardData, 15000);
 
     return () => clearInterval(interval);
@@ -408,7 +387,7 @@ const Dashboard = () => {
   const getStockHealthPercentage = () => {
     const { totalProducts, lowStockProducts, outOfStockProducts } =
       dashboardData.statistics;
-    if (totalProducts === 0) return 0;
+    if (totalProducts === 0) return 100;
     const healthyProducts =
       totalProducts - lowStockProducts - outOfStockProducts;
     return Math.round((healthyProducts / totalProducts) * 100);
@@ -423,7 +402,7 @@ const Dashboard = () => {
         minute: "2-digit",
       });
     } catch (error) {
-      return "Invalid Date";
+      return "Tanggal Tidak Valid";
     }
   };
 
@@ -451,10 +430,11 @@ const Dashboard = () => {
     const transactionDate = new Date(dateString);
     const diffInMinutes = Math.floor((now - transactionDate) / (1000 * 60));
 
-    if (diffInMinutes < 1) return "Just now";
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+    if (diffInMinutes < 1) return "Baru saja";
+    if (diffInMinutes < 60) return `${diffInMinutes}m yang lalu`;
+    if (diffInMinutes < 1440)
+      return `${Math.floor(diffInMinutes / 60)}j yang lalu`;
+    return `${Math.floor(diffInMinutes / 1440)}h yang lalu`;
   };
 
   return (
@@ -462,7 +442,6 @@ const Dashboard = () => {
       <CRow>
         <CCol>
           <CBreadcrumb className="mb-3">
-            <CBreadcrumbItem href="#">Home</CBreadcrumbItem>
             <CBreadcrumbItem active>Dashboard</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
@@ -473,14 +452,14 @@ const Dashboard = () => {
           <CCard className="mb-4">
             <CCardHeader>
               <div className="d-flex justify-content-between align-items-center">
-                <h4>Inventory & Transaction Dashboard</h4>
+                <h4>Dashboard Inventori & Transaksi</h4>
                 <div className="d-flex gap-2 align-items-center">
                   <small className="text-muted">
                     <Clock size={14} className="me-1" />
-                    Last update: {formatDate(lastUpdate)}
+                    Pembaruan terakhir: {formatDate(lastUpdate)}
                   </small>
                   <CBadge color="info" className="me-2">
-                    Auto-refresh: 15s
+                    Pembaruan otomatis: 15s
                   </CBadge>
                   <CButton
                     color="secondary"
@@ -491,7 +470,7 @@ const Dashboard = () => {
                       className={`me-1 ${loading ? "fa-spin" : ""}`}
                       size={16}
                     />
-                    Refresh
+                    Muat Ulang
                   </CButton>
                 </div>
               </div>
@@ -522,7 +501,7 @@ const Dashboard = () => {
                         onClick={() => setActiveTab("overview")}
                         style={{ cursor: "pointer" }}
                       >
-                        Overview
+                        Ringkasan
                       </CNavLink>
                     </CNavItem>
                     <CNavItem>
@@ -531,7 +510,7 @@ const Dashboard = () => {
                         onClick={() => setActiveTab("products")}
                         style={{ cursor: "pointer" }}
                       >
-                        Products
+                        Produk
                       </CNavLink>
                     </CNavItem>
                     <CNavItem>
@@ -540,7 +519,7 @@ const Dashboard = () => {
                         onClick={() => setActiveTab("transactions")}
                         style={{ cursor: "pointer" }}
                       >
-                        Transactions
+                        Transaksi
                       </CNavLink>
                     </CNavItem>
                   </CNav>
@@ -561,7 +540,7 @@ const Dashboard = () => {
                                 {dashboardData.statistics.totalProducts}
                               </h4>
                               <p className="text-medium-emphasis mb-1">
-                                Total Products
+                                Total Produk
                               </p>
                               <CBadge
                                 color={getTrendColor(
@@ -585,7 +564,7 @@ const Dashboard = () => {
                                 {dashboardData.statistics.totalStock}
                               </h4>
                               <p className="text-medium-emphasis mb-1">
-                                Total Stock
+                                Total Stok
                               </p>
                               <CBadge
                                 color={getTrendColor(
@@ -615,7 +594,7 @@ const Dashboard = () => {
                                 }
                               </h4>
                               <p className="text-medium-emphasis mb-1">
-                                Total Transactions
+                                Total Transaksi
                               </p>
                               <CBadge
                                 color={getTrendColor(
@@ -645,7 +624,7 @@ const Dashboard = () => {
                                 }
                               </h4>
                               <p className="text-medium-emphasis mb-1">
-                                Today's Transactions
+                                Transaksi Hari Ini
                               </p>
                               <CBadge color="info">Real-time</CBadge>
                             </CCardBody>
@@ -658,19 +637,9 @@ const Dashboard = () => {
                         <CCol md={6}>
                           <CCard className="h-100">
                             <CCardHeader>
-                              <h6>Stock Health Status</h6>
+                              <h6>Status Stok</h6>
                             </CCardHeader>
                             <CCardBody>
-                              <div className="d-flex justify-content-between mb-3">
-                                <span>Overall Health</span>
-                                <strong>{getStockHealthPercentage()}%</strong>
-                              </div>
-                              <CProgress
-                                value={getStockHealthPercentage()}
-                                color="success"
-                                height={12}
-                                className="mb-3"
-                              />
                               <div className="row text-center">
                                 <div className="col">
                                   <div className="text-warning">
@@ -680,7 +649,7 @@ const Dashboard = () => {
                                     {dashboardData.statistics.lowStockProducts}
                                   </div>
                                   <small className="text-muted">
-                                    Low Stock
+                                    Stok Rendah (≤ stok min)
                                   </small>
                                 </div>
                                 <div className="col">
@@ -694,7 +663,7 @@ const Dashboard = () => {
                                     }
                                   </div>
                                   <small className="text-muted">
-                                    Out of Stock
+                                    Stok Habis (0)
                                   </small>
                                 </div>
                               </div>
@@ -705,7 +674,7 @@ const Dashboard = () => {
                         <CCol md={6}>
                           <CCard className="h-100">
                             <CCardHeader>
-                              <h6>Stock Movement</h6>
+                              <h6>Pergerakan Stok</h6>
                             </CCardHeader>
                             <CCardBody>
                               <div className="row text-center">
@@ -720,7 +689,9 @@ const Dashboard = () => {
                                         .totalIncomingQty
                                     }
                                   </div>
-                                  <small className="text-muted">Items In</small>
+                                  <small className="text-muted">
+                                    Barang Masuk
+                                  </small>
                                 </div>
                                 <div className="col">
                                   <div className="text-danger">
@@ -734,7 +705,7 @@ const Dashboard = () => {
                                     }
                                   </div>
                                   <small className="text-muted">
-                                    Items Out
+                                    Barang Keluar
                                   </small>
                                 </div>
                                 <div className="col">
@@ -749,7 +720,7 @@ const Dashboard = () => {
                                     {dashboardData.transactionStats.netMovement}
                                   </div>
                                   <small className="text-muted">
-                                    Net Movement
+                                    Pergerakan Bersih
                                   </small>
                                 </div>
                               </div>
@@ -764,7 +735,7 @@ const Dashboard = () => {
                           <CCard>
                             <CCardHeader>
                               <div className="d-flex justify-content-between align-items-center">
-                                <h6>Recent Transactions (Real-time)</h6>
+                                <h6>Transaksi Terkini (Real-time)</h6>
                                 <div className="d-flex align-items-center">
                                   <CBadge color="success" className="me-2">
                                     <div
@@ -777,27 +748,30 @@ const Dashboard = () => {
                                     ></div>
                                     Live
                                   </CBadge>
-                                  <CButton
-                                    color="primary"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => navigate("/history")}
-                                  >
-                                    View All
-                                  </CButton>
                                 </div>
                               </div>
                             </CCardHeader>
                             <CCardBody>
-                              {dashboardData.transactionStats.recentTransactions
-                                .length === 0 ? (
+                              {dashboardData.transactionStats.recentTransactions.filter(
+                                (transaction) =>
+                                  transaction.product &&
+                                  typeof transaction.product === "object" &&
+                                  transaction.product.name
+                              ).length === 0 ? (
                                 <p className="text-muted text-center mb-0">
-                                  No recent transactions
+                                  Tidak ada transaksi terkini
                                 </p>
                               ) : (
                                 <div className="row">
-                                  {dashboardData.transactionStats.recentTransactions.map(
-                                    (transaction) => {
+                                  {dashboardData.transactionStats.recentTransactions
+                                    .filter(
+                                      (transaction) =>
+                                        transaction.product &&
+                                        typeof transaction.product ===
+                                          "object" &&
+                                        transaction.product.name
+                                    )
+                                    .map((transaction) => {
                                       const typeDisplay =
                                         getTransactionTypeDisplay(
                                           transaction.type
@@ -829,7 +803,7 @@ const Dashboard = () => {
                                                   )}
                                                 </div>
                                                 <small className="text-muted">
-                                                  Qty: {transaction.quantity} |{" "}
+                                                  Jml: {transaction.quantity} |{" "}
                                                   {formatDate(
                                                     transaction.createdAt
                                                   )}
@@ -854,8 +828,7 @@ const Dashboard = () => {
                                           </div>
                                         </div>
                                       );
-                                    }
-                                  )}
+                                    })}
                                 </div>
                               )}
                             </CCardBody>
@@ -867,478 +840,22 @@ const Dashboard = () => {
 
                   {/* Products Tab */}
                   {activeTab === "products" && (
-                    <>
-                      {/* Product Statistics Cards */}
-                      <CRow className="mb-4">
-                        <CCol sm={6} lg={3}>
-                          <CCard className="mb-3">
-                            <CCardBody className="text-center">
-                              <ShoppingCart
-                                size={48}
-                                className="text-primary mb-2"
-                              />
-                              <h3 className="text-primary">
-                                {dashboardData.statistics.totalProducts}
-                              </h3>
-                              <p className="text-medium-emphasis mb-1">
-                                Total Products
-                              </p>
-                              <div className="d-flex align-items-center justify-content-center">
-                                {React.createElement(
-                                  getTrendIcon(
-                                    dashboardData.trends.productGrowth
-                                  ),
-                                  {
-                                    className: `text-${getTrendColor(
-                                      dashboardData.trends.productGrowth
-                                    )} me-1`,
-                                    size: 16,
-                                  }
-                                )}
-                                <CBadge
-                                  color={getTrendColor(
-                                    dashboardData.trends.productGrowth
-                                  )}
-                                >
-                                  {dashboardData.trends.productGrowth > 0
-                                    ? "+"
-                                    : ""}
-                                  {dashboardData.trends.productGrowth}%
-                                </CBadge>
-                              </div>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-
-                        <CCol sm={6} lg={3}>
-                          <CCard className="mb-3">
-                            <CCardBody className="text-center">
-                              <Package size={48} className="text-info mb-2" />
-                              <h3 className="text-info">
-                                {dashboardData.statistics.totalStock}
-                              </h3>
-                              <p className="text-medium-emphasis mb-1">
-                                Total Stock
-                              </p>
-                              <div className="d-flex align-items-center justify-content-center">
-                                {React.createElement(
-                                  getTrendIcon(
-                                    dashboardData.trends.stockGrowth
-                                  ),
-                                  {
-                                    className: `text-${getTrendColor(
-                                      dashboardData.trends.stockGrowth
-                                    )} me-1`,
-                                    size: 16,
-                                  }
-                                )}
-                                <CBadge
-                                  color={getTrendColor(
-                                    dashboardData.trends.stockGrowth
-                                  )}
-                                >
-                                  {dashboardData.trends.stockGrowth > 0
-                                    ? "+"
-                                    : ""}
-                                  {dashboardData.trends.stockGrowth}%
-                                </CBadge>
-                              </div>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-
-                        <CCol sm={6} lg={3}>
-                          <CCard className="mb-3">
-                            <CCardBody className="text-center">
-                              <AlertTriangle
-                                size={48}
-                                className="text-warning mb-2"
-                              />
-                              <h3 className="text-warning">
-                                {dashboardData.statistics.lowStockProducts}
-                              </h3>
-                              <p className="text-medium-emphasis mb-1">
-                                Low Stock Items
-                              </p>
-                              <div className="d-flex align-items-center justify-content-center">
-                                {React.createElement(
-                                  getTrendIcon(
-                                    dashboardData.trends.lowStockTrend
-                                  ),
-                                  {
-                                    className: `text-${getTrendColor(
-                                      dashboardData.trends.lowStockTrend
-                                    )} me-1`,
-                                    size: 16,
-                                  }
-                                )}
-                                <CBadge
-                                  color={getTrendColor(
-                                    dashboardData.trends.lowStockTrend
-                                  )}
-                                >
-                                  {dashboardData.trends.lowStockTrend > 0
-                                    ? "+"
-                                    : ""}
-                                  {dashboardData.trends.lowStockTrend}%
-                                </CBadge>
-                              </div>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-
-                        <CCol sm={6} lg={3}>
-                          <CCard className="mb-3">
-                            <CCardBody className="text-center">
-                              <CheckCircle
-                                size={48}
-                                className="text-danger mb-2"
-                              />
-                              <h3 className="text-danger">
-                                {dashboardData.statistics.outOfStockProducts}
-                              </h3>
-                              <p className="text-medium-emphasis mb-1">
-                                Out of Stock
-                              </p>
-                              <CButton
-                                color="primary"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate("/products")}
-                              >
-                                Manage Stock
-                              </CButton>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-                      </CRow>
-
-                      {/* Product List Table */}
-                      <CCard className="mb-4">
-                        <CCardHeader>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <h6>Product Inventory</h6>
-                            <div>
-                              <CButton
-                                color="primary"
-                                size="sm"
-                                onClick={() => navigate("/products/add")}
-                              >
-                                <Plus size={16} className="me-1" />
-                                Add Product
-                              </CButton>
-                            </div>
-                          </div>
-                        </CCardHeader>
-                        <CCardBody>
-                          <CTable striped hover responsive>
-                            <CTableHead>
-                              <CTableRow>
-                                <CTableHeaderCell>Product</CTableHeaderCell>
-                                <CTableHeaderCell>Category</CTableHeaderCell>
-                                <CTableHeaderCell className="text-center">
-                                  Stock
-                                </CTableHeaderCell>
-                                <CTableHeaderCell className="text-center">
-                                  Status
-                                </CTableHeaderCell>
-                                <CTableHeaderCell className="text-end">
-                                  Actions
-                                </CTableHeaderCell>
-                              </CTableRow>
-                            </CTableHead>
-                            <CTableBody>
-                              {dashboardData.currentProducts.length === 0 ? (
-                                <CTableRow>
-                                  <CTableDataCell
-                                    colSpan="5"
-                                    className="text-center"
-                                  >
-                                    No products found
-                                  </CTableDataCell>
-                                </CTableRow>
-                              ) : (
-                                dashboardData.currentProducts.map((product) => (
-                                  <CTableRow key={product._id}>
-                                    <CTableDataCell>
-                                      <div className="fw-bold">
-                                        {product.name}
-                                      </div>
-                                      <small className="text-muted">
-                                        {product.code}
-                                      </small>
-                                    </CTableDataCell>
-                                    <CTableDataCell>
-                                      {getCategoryName(product.category)}
-                                    </CTableDataCell>
-                                    <CTableDataCell className="text-center">
-                                      {product.currentStock || 0}
-                                    </CTableDataCell>
-                                    <CTableDataCell className="text-center">
-                                      {product.currentStock <= 0 ? (
-                                        <CBadge color="danger">
-                                          Out of Stock
-                                        </CBadge>
-                                      ) : product.currentStock < 10 ? (
-                                        <CBadge color="warning">
-                                          Low Stock
-                                        </CBadge>
-                                      ) : (
-                                        <CBadge color="success">
-                                          In Stock
-                                        </CBadge>
-                                      )}
-                                    </CTableDataCell>
-                                    <CTableDataCell className="text-end">
-                                      <CButton
-                                        color="info"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() =>
-                                          navigate(`/products/${product._id}`)
-                                        }
-                                      >
-                                        Details
-                                      </CButton>
-                                    </CTableDataCell>
-                                  </CTableRow>
-                                ))
-                              )}
-                            </CTableBody>
-                          </CTable>
-                        </CCardBody>
-                      </CCard>
-                    </>
+                    <ProductDashboard
+                      statistics={dashboardData.statistics}
+                      trends={dashboardData.trends}
+                      currentProducts={dashboardData.currentProducts}
+                      navigate={navigate}
+                    />
                   )}
 
                   {/* Transactions Tab */}
                   {activeTab === "transactions" && (
-                    <>
-                      {/* Transaction Statistics Cards */}
-                      <CRow className="mb-4">
-                        <CCol sm={6} lg={3}>
-                          <CCard className="mb-3">
-                            <CCardBody className="text-center">
-                              <FileText
-                                size={48}
-                                className="text-primary mb-2"
-                              />
-                              <h3 className="text-primary">
-                                {
-                                  dashboardData.transactionStats
-                                    .totalTransactions
-                                }
-                              </h3>
-                              <p className="text-medium-emphasis mb-1">
-                                Total Transactions
-                              </p>
-                              <div className="d-flex align-items-center justify-content-center">
-                                {React.createElement(
-                                  getTrendIcon(
-                                    dashboardData.trends.transactionGrowth
-                                  ),
-                                  {
-                                    className: `text-${getTrendColor(
-                                      dashboardData.trends.transactionGrowth
-                                    )} me-1`,
-                                    size: 16,
-                                  }
-                                )}
-                                <CBadge
-                                  color={getTrendColor(
-                                    dashboardData.trends.transactionGrowth
-                                  )}
-                                >
-                                  {dashboardData.trends.transactionGrowth > 0
-                                    ? "+"
-                                    : ""}
-                                  {dashboardData.trends.transactionGrowth}%
-                                </CBadge>
-                              </div>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-
-                        <CCol sm={6} lg={3}>
-                          <CCard className="mb-3">
-                            <CCardBody className="text-center">
-                              <ArrowUpCircle
-                                size={48}
-                                className="text-success mb-2"
-                              />
-                              <h3 className="text-success">
-                                {
-                                  dashboardData.transactionStats
-                                    .incomingTransactions
-                                }
-                              </h3>
-                              <p className="text-medium-emphasis mb-1">
-                                Incoming
-                              </p>
-                              <small className="text-muted">
-                                {
-                                  dashboardData.transactionStats
-                                    .totalIncomingQty
-                                }{" "}
-                                items
-                              </small>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-
-                        <CCol sm={6} lg={3}>
-                          <CCard className="mb-3">
-                            <CCardBody className="text-center">
-                              <ArrowDownCircle
-                                size={48}
-                                className="text-danger mb-2"
-                              />
-                              <h3 className="text-danger">
-                                {
-                                  dashboardData.transactionStats
-                                    .outgoingTransactions
-                                }
-                              </h3>
-                              <p className="text-medium-emphasis mb-1">
-                                Outgoing
-                              </p>
-                              <small className="text-muted">
-                                {
-                                  dashboardData.transactionStats
-                                    .totalOutgoingQty
-                                }{" "}
-                                items
-                              </small>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-
-                        <CCol sm={6} lg={3}>
-                          <CCard className="mb-3">
-                            <CCardBody className="text-center">
-                              <DollarSign
-                                size={48}
-                                className="text-info mb-2"
-                              />
-                              <h3 className="text-info">
-                                {formatCurrency(
-                                  dashboardData.transactionStats.totalValue
-                                )}
-                              </h3>
-                              <p className="text-medium-emphasis mb-1">
-                                Total Value
-                              </p>
-                              <small className="text-muted">
-                                {formatCurrency(
-                                  dashboardData.transactionStats.todayValue
-                                )}{" "}
-                                today
-                              </small>
-                            </CCardBody>
-                          </CCard>
-                        </CCol>
-                      </CRow>
-
-                      {/* Transaction History Table */}
-                      <CCard className="mb-4">
-                        <CCardHeader>
-                          <div className="d-flex justify-content-between align-items-center">
-                            <h6>Transaction History</h6>
-                            <div>
-                              <CButton
-                                color="primary"
-                                size="sm"
-                                onClick={() => navigate("/transactions/add")}
-                              >
-                                <Plus size={16} className="me-1" />
-                                New Transaction
-                              </CButton>
-                            </div>
-                          </div>
-                        </CCardHeader>
-                        <CCardBody>
-                          <CTable striped hover responsive>
-                            <CTableHead>
-                              <CTableRow>
-                                <CTableHeaderCell>Date</CTableHeaderCell>
-                                <CTableHeaderCell>Product</CTableHeaderCell>
-                                <CTableHeaderCell>Type</CTableHeaderCell>
-                                <CTableHeaderCell className="text-center">
-                                  Qty
-                                </CTableHeaderCell>
-                                <CTableHeaderCell className="text-end">
-                                  Value
-                                </CTableHeaderCell>
-                                <CTableHeaderCell className="text-end">
-                                  Actions
-                                </CTableHeaderCell>
-                              </CTableRow>
-                            </CTableHead>
-                            <CTableBody>
-                              {dashboardData.transactions.length === 0 ? (
-                                <CTableRow>
-                                  <CTableDataCell
-                                    colSpan="6"
-                                    className="text-center"
-                                  >
-                                    No transactions found
-                                  </CTableDataCell>
-                                </CTableRow>
-                              ) : (
-                                dashboardData.transactions
-                                  .slice(0, 10)
-                                  .map((transaction) => {
-                                    const typeDisplay =
-                                      getTransactionTypeDisplay(
-                                        transaction.type
-                                      );
-                                    return (
-                                      <CTableRow key={transaction._id}>
-                                        <CTableDataCell>
-                                          {formatDate(transaction.createdAt)}
-                                        </CTableDataCell>
-                                        <CTableDataCell>
-                                          {getProductName(transaction.product)}
-                                        </CTableDataCell>
-                                        <CTableDataCell>
-                                          <CBadge color={typeDisplay.color}>
-                                            {typeDisplay.label}
-                                          </CBadge>
-                                        </CTableDataCell>
-                                        <CTableDataCell className="text-center">
-                                          {transaction.quantity}
-                                        </CTableDataCell>
-                                        <CTableDataCell className="text-end">
-                                          {transaction.price
-                                            ? formatCurrency(
-                                                transaction.price *
-                                                  transaction.quantity
-                                              )
-                                            : "-"}
-                                        </CTableDataCell>
-                                        <CTableDataCell className="text-end">
-                                          <CButton
-                                            color="info"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() =>
-                                              navigate(
-                                                `/transactions/${transaction._id}`
-                                              )
-                                            }
-                                          >
-                                            Details
-                                          </CButton>
-                                        </CTableDataCell>
-                                      </CTableRow>
-                                    );
-                                  })
-                              )}
-                            </CTableBody>
-                          </CTable>
-                        </CCardBody>
-                      </CCard>
-                    </>
+                    <TransactionDashboard
+                      transactionStats={dashboardData.transactionStats}
+                      trends={dashboardData.trends}
+                      transactions={dashboardData.transactions}
+                      navigate={navigate}
+                    />
                   )}
                 </>
               )}

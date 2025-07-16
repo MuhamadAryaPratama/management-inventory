@@ -1,37 +1,56 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { isTokenExpired } from "../utils/SessionTimeout";
+import {
+  isTokenExpired,
+  refreshUserToken,
+  logout,
+} from "../utils/SessionTimeout";
 
-/**
- * ProtectedRoute component to guard routes that require authentication
- * Checks if user is authenticated and token is not expired
- */
 const ProtectedRoute = () => {
-  const token = localStorage.getItem("userToken");
-  const isAuthenticated = token && !isTokenExpired();
+  const checkAuth = () => {
+    const token = localStorage.getItem("userToken");
+    const userData = localStorage.getItem("userData");
+    return token && !isTokenExpired() && userData;
+  };
 
-  if (!isAuthenticated) {
-    // Redirect to login page with a message if token is expired or missing
+  const [authenticated, setAuthenticated] = React.useState(checkAuth());
+  const [wasAuthenticated, setWasAuthenticated] = React.useState(
+    !!localStorage.getItem("userToken")
+  );
+
+  useEffect(() => {
+    const verifyToken = async () => {
+      if (isTokenExpired()) {
+        const result = await refreshUserToken();
+        setAuthenticated(result.success);
+        if (!result.success) {
+          logout();
+          setWasAuthenticated(true); // User was previously authenticated
+        }
+      }
+    };
+
+    const interval = setInterval(verifyToken, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!authenticated) {
     return (
       <Navigate
         to="/login"
         state={
-          token
+          wasAuthenticated
             ? {
                 message: "Your session has expired. Please log in again.",
                 alertType: "warning",
               }
-            : {
-                message: "You need to log in to access this page.",
-                alertType: "info",
-              }
+            : null
         }
         replace
       />
     );
   }
 
-  // User is authenticated, render the protected route
   return <Outlet />;
 };
 

@@ -4,6 +4,7 @@ import {
   calculateROP,
   getAllROP,
   checkAllProductsROP,
+  // cleanupOrphanedROP,
 } from "../controllers/RopController.js";
 
 import asyncHandler from "express-async-handler";
@@ -20,6 +21,10 @@ router
 router
   .route("/check-all")
   .post(protect, role("pemilik"), asyncHandler(checkAllProductsROP));
+
+// router
+//   .route("/rop/cleanup")
+//   .post(protect, role("pemilik"), asyncHandler(cleanupOrphanedROP));
 
 export default router;
 

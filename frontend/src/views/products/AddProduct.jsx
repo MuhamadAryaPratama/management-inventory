@@ -65,10 +65,10 @@ const AddProduct = () => {
         setCategories(categoriesRes.data || []);
         setSuppliers(suppliersRes.data || []);
       } catch (err) {
-        console.error("Error fetching initial data:", err);
+        console.error("Gagal mengambil data awal:", err);
         Swal.fire(
           "Error",
-          "Failed to load form data. Please refresh the page.",
+          "Gagal memuat data formulir. Silakan muat ulang halaman.",
           "error"
         );
       } finally {
@@ -97,18 +97,18 @@ const AddProduct = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) newErrors.name = "Product name is required";
-    if (!formData.category) newErrors.category = "Category is required";
-    if (!formData.supplier) newErrors.supplier = "Supplier is required";
+    if (!formData.name.trim()) newErrors.name = "Nama produk wajib diisi";
+    if (!formData.category) newErrors.category = "Kategori wajib dipilih";
+    if (!formData.supplier) newErrors.supplier = "Supplier wajib dipilih";
 
     if (!formData.price || formData.price <= 0) {
-      newErrors.price = "Price must be greater than 0";
+      newErrors.price = "Harga harus lebih besar dari 0";
     }
     if (!formData.currentStock || formData.currentStock < 0) {
-      newErrors.currentStock = "Stock cannot be negative";
+      newErrors.currentStock = "Stok tidak boleh negatif";
     }
     if (formData.minStock && formData.minStock < 0) {
-      newErrors.minStock = "Minimum stock cannot be negative";
+      newErrors.minStock = "Stok minimum tidak boleh negatif";
     }
 
     setErrors(newErrors);
@@ -146,17 +146,17 @@ const AddProduct = () => {
 
       Swal.fire({
         icon: "success",
-        title: "Product Added",
-        text: "Product added successfully!",
+        title: "Produk Berhasil Ditambahkan",
+        text: "Produk berhasil ditambahkan!",
         confirmButtonText: "OK",
       }).then(() => {
         navigate("/product-management/items");
       });
     } catch (err) {
-      console.error("Error adding product:", err);
+      console.error("Gagal menambahkan produk:", err);
       Swal.fire({
         icon: "error",
-        title: "Failed to Add Product",
+        title: "Gagal Menambahkan Produk",
         text: err.response?.data?.message || err.message,
       });
     } finally {
@@ -196,12 +196,12 @@ const AddProduct = () => {
       <CRow>
         <CCol>
           <CBreadcrumb className="mb-3">
-            <CBreadcrumbItem href="/dashboard">Home</CBreadcrumbItem>
-            <CBreadcrumbItem>Product Management</CBreadcrumbItem>
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem>Manajemen Produk</CBreadcrumbItem>
             <CBreadcrumbItem href="/product-management">
-              Product List
+              Daftar Produk
             </CBreadcrumbItem>
-            <CBreadcrumbItem active>Add Product</CBreadcrumbItem>
+            <CBreadcrumbItem active>Tambah Produk</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
       </CRow>
@@ -210,7 +210,7 @@ const AddProduct = () => {
         <CCol xs={12}>
           <CCard className="mb-4">
             <CCardHeader>
-              <h5>Add New Product</h5>
+              <h5>Tambah Produk Baru</h5>
             </CCardHeader>
             <CCardBody>
               <CForm
@@ -222,7 +222,7 @@ const AddProduct = () => {
                   <CCol md={6}>
                     <div className="mb-3">
                       <CFormLabel htmlFor="name">
-                        Product Name <span className="text-danger">*</span>
+                        Nama Produk <span className="text-danger">*</span>
                       </CFormLabel>
                       <CFormInput
                         type="text"
@@ -230,7 +230,7 @@ const AddProduct = () => {
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
-                        placeholder="Enter product name"
+                        placeholder="Masukkan nama produk"
                         invalid={!!errors.name}
                         required
                       />
@@ -239,7 +239,7 @@ const AddProduct = () => {
 
                     <div className="mb-3">
                       <CFormLabel htmlFor="category">
-                        Category <span className="text-danger">*</span>
+                        Kategori <span className="text-danger">*</span>
                       </CFormLabel>
                       <CFormSelect
                         id="category"
@@ -249,7 +249,7 @@ const AddProduct = () => {
                         invalid={!!errors.category}
                         required
                       >
-                        <option value="">Select Category</option>
+                        <option value="">Pilih Kategori</option>
                         {categories.map((category) => (
                           <option key={category._id} value={category._id}>
                             {category.name}
@@ -271,7 +271,7 @@ const AddProduct = () => {
                         invalid={!!errors.supplier}
                         required
                       >
-                        <option value="">Select Supplier</option>
+                        <option value="">Pilih Supplier</option>
                         {suppliers.map((supplier) => (
                           <option key={supplier._id} value={supplier._id}>
                             {supplier.name}
@@ -285,7 +285,7 @@ const AddProduct = () => {
                   <CCol md={6}>
                     <div className="mb-3">
                       <CFormLabel htmlFor="price">
-                        Unit Price <span className="text-danger">*</span>
+                        Harga Satuan <span className="text-danger">*</span>
                       </CFormLabel>
                       <CInputGroup>
                         <CInputGroupText>Rp</CInputGroupText>
@@ -307,7 +307,7 @@ const AddProduct = () => {
 
                     <div className="mb-3">
                       <CFormLabel htmlFor="currentStock">
-                        Initial Stock <span className="text-danger">*</span>
+                        Stok Awal <span className="text-danger">*</span>
                       </CFormLabel>
                       <CFormInput
                         type="number"
@@ -315,7 +315,7 @@ const AddProduct = () => {
                         name="currentStock"
                         value={formData.currentStock}
                         onChange={handleInputChange}
-                        placeholder="Enter initial stock quantity"
+                        placeholder="Masukkan jumlah stok awal"
                         min="0"
                         invalid={!!errors.currentStock}
                         required
@@ -326,14 +326,14 @@ const AddProduct = () => {
                     </div>
 
                     <div className="mb-3">
-                      <CFormLabel htmlFor="minStock">Minimum Stock</CFormLabel>
+                      <CFormLabel htmlFor="minStock">Stok Minimum</CFormLabel>
                       <CFormInput
                         type="number"
                         id="minStock"
                         name="minStock"
                         value={formData.minStock}
                         onChange={handleInputChange}
-                        placeholder="Minimum stock alert level"
+                        placeholder="Level peringatan stok minimum"
                         min="0"
                         invalid={!!errors.minStock}
                       />
@@ -345,14 +345,14 @@ const AddProduct = () => {
                 <CRow>
                   <CCol xs={12}>
                     <div className="mb-4">
-                      <CFormLabel htmlFor="description">Description</CFormLabel>
+                      <CFormLabel htmlFor="description">Deskripsi</CFormLabel>
                       <CFormTextarea
                         id="description"
                         name="description"
                         value={formData.description}
                         onChange={handleInputChange}
                         rows="3"
-                        placeholder="Product description (optional)"
+                        placeholder="Deskripsi produk (opsional)"
                       />
                     </div>
                   </CCol>
@@ -369,7 +369,7 @@ const AddProduct = () => {
                           className="me-2"
                         >
                           <CIcon icon={cilArrowLeft} className="me-1" />
-                          Back
+                          Kembali
                         </CButton>
                         <CButton
                           color="warning"
@@ -385,12 +385,12 @@ const AddProduct = () => {
                         {loading ? (
                           <>
                             <CSpinner size="sm" className="me-1" />
-                            Saving...
+                            Menyimpan...
                           </>
                         ) : (
                           <>
                             <CIcon icon={cilSave} className="me-1" />
-                            Save Product
+                            Simpan Produk
                           </>
                         )}
                       </CButton>

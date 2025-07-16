@@ -91,6 +91,15 @@ export const useAuth = () => {
     }
   };
 
+  useEffect(() => {
+    const handleUserLoggedIn = () => {
+      initializeAuth();
+    };
+
+    window.addEventListener("userLoggedIn", handleUserLoggedIn);
+    return () => window.removeEventListener("userLoggedIn", handleUserLoggedIn);
+  }, []);
+
   return {
     user,
     loading,

@@ -5,14 +5,14 @@ import {
   getProductById,
   updateProduct,
   deleteProduct,
-  getProductImage,
+  checkAllLowStock,
 } from "../controllers/ProductController.js";
 import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Image route should be placed before parameterized routes to avoid conflicts
-router.get("/image/:imageName", getProductImage);
+// Low stock check route (admin/pemilik only)
+router.post("/check-low-stock", protect, checkAllLowStock);
 
 // Product CRUD routes
 router.post("/", protect, createProduct);

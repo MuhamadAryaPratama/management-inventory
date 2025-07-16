@@ -38,8 +38,6 @@ import {
   List,
   Database,
   Info,
-  ArrowUp,
-  ArrowDown,
   Filter,
 } from "lucide-react";
 
@@ -52,8 +50,6 @@ const TransactionReport = () => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [userFilter, setUserFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [stats, setStats] = useState({
@@ -63,46 +59,50 @@ const TransactionReport = () => {
     totalRevenue: 0,
   });
 
+  const getToken = () => {
+    try {
+      return localStorage.getItem("userToken") || "";
+    } catch (err) {
+      console.error("Error accessing localStorage:", err);
+      return "";
+    }
+  };
+
   const fetchTransactions = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Check if we're in a browser environment and get token
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("userToken")
-          : null;
-
-      const headers = {
-        "Content-Type": "application/json",
-      };
-
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
+      const token = getToken();
+      if (!token) {
+        throw new Error("Token autentikasi tidak ditemukan");
       }
 
       const response = await fetch("http://localhost:5000/api/transactions", {
         method: "GET",
-        headers: headers,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("Authentication failed. Please login again.");
+          throw new Error("Sesi telah berakhir. Silakan login kembali.");
         }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Error HTTP! status: ${response.status}`);
       }
 
       const data = await response.json();
 
       // Handle both array response and object with data property
       const transactionData = Array.isArray(data) ? data : data.data || [];
+
       setTransactions(transactionData);
       setFilteredTransactions(transactionData);
       calculateStats(transactionData);
     } catch (err) {
-      console.error("Error fetching transactions:", err);
+      console.error("Error saat mengambil data transaksi:", err);
       setError(err.message);
       setTransactions([]);
       setFilteredTransactions([]);
@@ -139,6 +139,7 @@ const TransactionReport = () => {
   };
 
   const checkDateFilter = (date, filter) => {
+    if (!date) return false;
     const transactionDate = new Date(date);
     const now = new Date();
 
@@ -187,55 +188,17 @@ const TransactionReport = () => {
       return matchesSearch && matchesType && matchesUser && matchesDate;
     });
 
-    // Sort transactions
+    // Default sort by createdAt descending
     filtered.sort((a, b) => {
-      let aValue, bValue;
-
-      switch (sortBy) {
-        case "createdAt":
-          aValue = new Date(a.createdAt || 0);
-          bValue = new Date(b.createdAt || 0);
-          break;
-        case "product":
-          aValue = (a.product?.name || "").toLowerCase();
-          bValue = (b.product?.name || "").toLowerCase();
-          break;
-        case "type":
-          aValue = a.type || "";
-          bValue = b.type || "";
-          break;
-        case "total":
-          aValue = a.total || 0;
-          bValue = b.total || 0;
-          break;
-        case "user":
-          aValue = (a.user?.name || "").toLowerCase();
-          bValue = (b.user?.name || "").toLowerCase();
-          break;
-        default:
-          aValue = new Date(a.createdAt || 0);
-          bValue = new Date(b.createdAt || 0);
-      }
-
-      if (sortOrder === "asc") {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
+      const aDate = new Date(a.createdAt || 0);
+      const bDate = new Date(b.createdAt || 0);
+      return bDate - aDate;
     });
 
     setFilteredTransactions(filtered);
     calculateStats(filtered);
     setCurrentPage(1);
-  }, [
-    transactions,
-    searchTerm,
-    typeFilter,
-    dateFilter,
-    userFilter,
-    sortBy,
-    sortOrder,
-  ]);
+  }, [transactions, searchTerm, typeFilter, dateFilter, userFilter]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("id-ID", {
@@ -273,7 +236,7 @@ const TransactionReport = () => {
         [
           formatDate(t.createdAt),
           `"${t.product?.name || "N/A"}"`,
-          t.type === "penjualan" ? "Sale" : "Purchase",
+          t.type === "penjualan" ? "Penjualan" : "Pembelian",
           t.quantity || 0,
           t.price || 0,
           t.total || 0,
@@ -287,7 +250,7 @@ const TransactionReport = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `transaction-report-${
+    a.download = `laporan-transaksi-${
       new Date().toISOString().split("T")[0]
     }.csv`;
     a.click();
@@ -318,11 +281,11 @@ const TransactionReport = () => {
           <CBreadcrumb className="mb-3">
             <CBreadcrumbItem href="/dashboard">
               <Home size={14} className="me-1" />
-              Home
+              Beranda
             </CBreadcrumbItem>
             <CBreadcrumbItem active>
               <List size={14} className="me-1" />
-              Transaction Report
+              Laporan Transaksi
             </CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
@@ -337,7 +300,7 @@ const TransactionReport = () => {
                 <div className="fs-4 fw-semibold">
                   {stats.totalTransactions}
                 </div>
-                <div>Total Transactions</div>
+                <div>Total Transaksi</div>
               </div>
               <FileText size={24} />
             </CCardBody>
@@ -348,7 +311,7 @@ const TransactionReport = () => {
             <CCardBody className="pb-0 d-flex justify-content-between align-items-start">
               <div>
                 <div className="fs-4 fw-semibold">{stats.totalSales}</div>
-                <div>Sales Transactions</div>
+                <div>Transaksi Penjualan</div>
               </div>
               <TrendingUp size={24} />
             </CCardBody>
@@ -359,7 +322,7 @@ const TransactionReport = () => {
             <CCardBody className="pb-0 d-flex justify-content-between align-items-start">
               <div>
                 <div className="fs-4 fw-semibold">{stats.totalPurchases}</div>
-                <div>Purchase Transactions</div>
+                <div>Transaksi Pembelian</div>
               </div>
               <TrendingDown size={24} />
             </CCardBody>
@@ -372,7 +335,7 @@ const TransactionReport = () => {
                 <div className="fs-4 fw-semibold">
                   {formatCurrency(stats.totalRevenue)}
                 </div>
-                <div>Total Revenue</div>
+                <div>Total Pendapatan</div>
               </div>
               <Package size={24} />
             </CCardBody>
@@ -386,10 +349,10 @@ const TransactionReport = () => {
             <CCardHeader>
               <h5>
                 <Database size={20} className="me-2" />
-                Transaction Report
+                Laporan Transaksi
               </h5>
               <p className="text-medium-emphasis mb-0">
-                Monitor and analyze all inventory transactions
+                Pantau dan analisis semua transaksi inventaris
               </p>
             </CCardHeader>
             <CCardBody>
@@ -398,7 +361,7 @@ const TransactionReport = () => {
                 <CCol sm={12} md={3} className="mb-2 mb-md-0">
                   <CInputGroup>
                     <CFormInput
-                      placeholder="Search products, users, notes..."
+                      placeholder="Cari produk, pengguna, catatan..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -412,9 +375,9 @@ const TransactionReport = () => {
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value)}
                   >
-                    <option value="all">All Types</option>
-                    <option value="penjualan">Sales</option>
-                    <option value="pembelian">Purchases</option>
+                    <option value="all">Semua Jenis</option>
+                    <option value="penjualan">Penjualan</option>
+                    <option value="pembelian">Pembelian</option>
                   </CFormSelect>
                 </CCol>
                 <CCol sm={6} md={2} className="mb-2 mb-md-0">
@@ -422,10 +385,10 @@ const TransactionReport = () => {
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
                   >
-                    <option value="all">All Dates</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
+                    <option value="all">Semua Tanggal</option>
+                    <option value="today">Hari Ini</option>
+                    <option value="week">Minggu Ini</option>
+                    <option value="month">Bulan Ini</option>
                   </CFormSelect>
                 </CCol>
                 <CCol sm={6} md={2} className="mb-2 mb-md-0">
@@ -433,7 +396,7 @@ const TransactionReport = () => {
                     value={userFilter}
                     onChange={(e) => setUserFilter(e.target.value)}
                   >
-                    <option value="all">All Users</option>
+                    <option value="all">Semua Pengguna</option>
                     {uniqueUsers.map((user) => (
                       <option key={user} value={user}>
                         {user}
@@ -441,29 +404,17 @@ const TransactionReport = () => {
                     ))}
                   </CFormSelect>
                 </CCol>
-                <CCol sm={6} md={1} className="d-flex gap-2">
-                  <CButton
-                    color="success"
-                    onClick={exportToCSV}
-                    className="flex-fill"
-                  >
-                    <Download size={14} className="me-1" />
-                    Export
-                  </CButton>
-                </CCol>
-                <CCol sm={6} md={2} className="d-flex gap-2">
-                  <CFormSelect
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                  >
-                    <option value="createdAt">Sort by Date</option>
-                    <option value="product">Sort by Product</option>
-                    <option value="type">Sort by Type</option>
-                    <option value="total">Sort by Total</option>
-                    <option value="user">Sort by User</option>
-                  </CFormSelect>
+                <CCol
+                  sm={6}
+                  md={3}
+                  className="mb-2 mb-md-0 d-flex justify-content-end gap-2"
+                >
                   <CButton color="secondary" onClick={handleRefresh}>
                     <RefreshCw size={14} />
+                  </CButton>
+                  <CButton color="success" onClick={exportToCSV}>
+                    <Download size={14} className="me-1" />
+                    Ekspor
                   </CButton>
                 </CCol>
               </CRow>
@@ -491,120 +442,24 @@ const TransactionReport = () => {
                     <CTableHead color="light">
                       <CTableRow>
                         <CTableHeaderCell scope="col">No</CTableHeaderCell>
-                        <CTableHeaderCell
-                          scope="col"
-                          style={{ cursor: "pointer" }}
-                          onClick={() => {
-                            setSortBy("createdAt");
-                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                          }}
-                        >
-                          <div className="d-flex align-items-center">
-                            Date & Time
-                            {sortBy === "createdAt" && (
-                              <span className="ms-1">
-                                {sortOrder === "asc" ? (
-                                  <ArrowUp size={12} />
-                                ) : (
-                                  <ArrowDown size={12} />
-                                )}
-                              </span>
-                            )}
-                          </div>
+                        <CTableHeaderCell scope="col">
+                          Tanggal & Waktu
                         </CTableHeaderCell>
-                        <CTableHeaderCell
-                          scope="col"
-                          style={{ cursor: "pointer" }}
-                          onClick={() => {
-                            setSortBy("product");
-                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                          }}
-                        >
-                          <div className="d-flex align-items-center">
-                            Product
-                            {sortBy === "product" && (
-                              <span className="ms-1">
-                                {sortOrder === "asc" ? (
-                                  <ArrowUp size={12} />
-                                ) : (
-                                  <ArrowDown size={12} />
-                                )}
-                              </span>
-                            )}
-                          </div>
+                        <CTableHeaderCell scope="col">Produk</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Jenis</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Jumlah</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Harga</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Total</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">
+                          Pengguna
                         </CTableHeaderCell>
-                        <CTableHeaderCell
-                          scope="col"
-                          style={{ cursor: "pointer" }}
-                          onClick={() => {
-                            setSortBy("type");
-                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                          }}
-                        >
-                          <div className="d-flex align-items-center">
-                            Type
-                            {sortBy === "type" && (
-                              <span className="ms-1">
-                                {sortOrder === "asc" ? (
-                                  <ArrowUp size={12} />
-                                ) : (
-                                  <ArrowDown size={12} />
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Qty</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Price</CTableHeaderCell>
-                        <CTableHeaderCell
-                          scope="col"
-                          style={{ cursor: "pointer" }}
-                          onClick={() => {
-                            setSortBy("total");
-                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                          }}
-                        >
-                          <div className="d-flex align-items-center">
-                            Total
-                            {sortBy === "total" && (
-                              <span className="ms-1">
-                                {sortOrder === "asc" ? (
-                                  <ArrowUp size={12} />
-                                ) : (
-                                  <ArrowDown size={12} />
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </CTableHeaderCell>
-                        <CTableHeaderCell
-                          scope="col"
-                          style={{ cursor: "pointer" }}
-                          onClick={() => {
-                            setSortBy("user");
-                            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                          }}
-                        >
-                          <div className="d-flex align-items-center">
-                            User
-                            {sortBy === "user" && (
-                              <span className="ms-1">
-                                {sortOrder === "asc" ? (
-                                  <ArrowUp size={12} />
-                                ) : (
-                                  <ArrowDown size={12} />
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Notes</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Catatan</CTableHeaderCell>
                       </CTableRow>
                     </CTableHead>
                     <CTableBody>
                       {currentItems.length > 0 ? (
                         currentItems.map((transaction, index) => (
-                          <CTableRow key={transaction._id || transaction.id}>
+                          <CTableRow key={transaction._id || index}>
                             <CTableDataCell>
                               {indexOfFirstItem + index + 1}
                             </CTableDataCell>
@@ -627,8 +482,8 @@ const TransactionReport = () => {
                                 }
                               >
                                 {transaction.type === "penjualan"
-                                  ? "Sale"
-                                  : "Purchase"}
+                                  ? "Penjualan"
+                                  : "Pembelian"}
                               </CBadge>
                             </CTableDataCell>
                             <CTableDataCell>
@@ -666,10 +521,11 @@ const TransactionReport = () => {
                               className="text-medium-emphasis mb-2"
                             />
                             <div className="fw-semibold">
-                              No transactions found
+                              Tidak ada transaksi ditemukan
                             </div>
                             <div className="text-medium-emphasis small">
-                              Try adjusting your search or filter criteria.
+                              Coba sesuaikan kriteria pencarian atau filter
+                              Anda.
                             </div>
                           </CTableDataCell>
                         </CTableRow>
@@ -678,12 +534,12 @@ const TransactionReport = () => {
                   </CTable>
 
                   {totalPages > 1 && (
-                    <CPagination align="end" aria-label="Page navigation">
+                    <CPagination align="end" aria-label="Navigasi halaman">
                       <CPaginationItem
                         disabled={currentPage === 1}
                         onClick={() => setCurrentPage(currentPage - 1)}
                       >
-                        Previous
+                        Sebelumnya
                       </CPaginationItem>
 
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map(
@@ -702,16 +558,17 @@ const TransactionReport = () => {
                         disabled={currentPage === totalPages}
                         onClick={() => setCurrentPage(currentPage + 1)}
                       >
-                        Next
+                        Selanjutnya
                       </CPaginationItem>
                     </CPagination>
                   )}
 
                   <div className="text-medium-emphasis small">
-                    Showing{" "}
+                    Menampilkan{" "}
                     {filteredTransactions.length > 0 ? indexOfFirstItem + 1 : 0}{" "}
-                    to {Math.min(indexOfLastItem, filteredTransactions.length)}{" "}
-                    of {filteredTransactions.length} entries
+                    sampai{" "}
+                    {Math.min(indexOfLastItem, filteredTransactions.length)}{" "}
+                    dari {filteredTransactions.length} entri
                   </div>
                 </>
               )}

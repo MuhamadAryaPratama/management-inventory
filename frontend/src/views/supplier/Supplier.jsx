@@ -20,14 +20,6 @@ import {
   CPaginationItem,
   CBreadcrumb,
   CBreadcrumbItem,
-  CModal,
-  CModalHeader,
-  CModalTitle,
-  CModalBody,
-  CModalFooter,
-  CForm,
-  CFormLabel,
-  CFormTextarea,
   CBadge,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
@@ -41,34 +33,20 @@ import {
 } from "@coreui/icons";
 import axios from "axios";
 import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
 
 const Supplier = () => {
+  const navigate = useNavigate();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState([10]);
+  const [itemsPerPage] = useState(10);
 
-  // Modal states
-  const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState("add");
-  const [selectedSupplier, setSelectedSupplier] = useState(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    contact: "",
-    phone: "",
-    address: "",
-  });
-  const [formLoading, setFormLoading] = useState(false);
-
-  // Initialize with sample data
   useEffect(() => {
-    console.log("Supplier component mounted");
-    // Then try to fetch from API
     fetchSuppliers();
   }, []);
 
-  // SweetAlert configuration
   const Toast = Swal.mixin({
     toast: true,
     position: "top-end",
@@ -81,10 +59,8 @@ const Supplier = () => {
     },
   });
 
-  // Fetch categories from API
   const fetchSuppliers = async () => {
     setLoading(true);
-
     try {
       const response = await axios.get("http://localhost:5000/api/suppliers", {
         headers: {
@@ -95,22 +71,20 @@ const Supplier = () => {
       if (response.data && Array.isArray(response.data)) {
         setSuppliers(response.data);
       } else {
-        throw new Error("Invalid data format received from server");
+        throw new Error("Format data tidak valid dari server");
       }
     } catch (error) {
-      console.error("Error fetching categories:", error);
+      console.error("Gagal mengambil data supplier:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle search input change
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
     setCurrentPage(1);
   };
 
-  // Filter supplier based on search
   const filteredSuppliers = suppliers.filter((supplier) => {
     const searchTerm = search.toLowerCase();
     return (
@@ -121,7 +95,6 @@ const Supplier = () => {
     );
   });
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredSuppliers.slice(
@@ -130,130 +103,26 @@ const Supplier = () => {
   );
   const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
 
-  // Handle form input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  // Open modal for adding new supplier
-  const handleAddSupplier = () => {
-    setModalMode("add");
-    setSelectedSupplier(null);
-    setFormData({
-      name: "",
-      contact: "",
-      phone: "",
-      address: "",
-    });
-    setShowModal(true);
-  };
-
-  // Open modal for editing supplier
-  const handleEditSupplier = (supplier) => {
-    setModalMode("edit");
-    setSelectedSupplier(supplier);
-    setFormData({
-      name: supplier.name || "",
-      contact: supplier.contact || "",
-      phone: supplier.phone || "",
-      address: supplier.address || "",
-    });
-    setShowModal(true);
-  };
-
-  // Close modal
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setSelectedSupplier(null);
-    setFormData({
-      name: "",
-      contact: "",
-      phone: "",
-      address: "",
-    });
-  };
-
-  // Submit form (add or edit)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormLoading(true);
-
-    // Shoe loading alert
-    Toast.fire({
-      title:
-        modalMode === "add" ? "Adding Supplier..." : "Updating Supplier...",
-      text: "Please wait",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
-
-    try {
-      const url =
-        modalMode === "add"
-          ? "http://localhost:5000/api/suppliers"
-          : `http://localhost:5000/api/suppliers/${selectedSupplier._id}`;
-
-      const method = modalMode === "add" ? "post" : "put";
-
-      await axios[method](url, formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      // Success alert
-      Toast.fire({
-        icon: "success",
-        title: "Success!",
-        text: `Supplier ${
-          modalMode === "add" ? "added" : "updated"
-        } successfully!`,
-      });
-
-      handleCloseModal();
-      fetchSuppliers();
-    } catch (error) {
-      console.error(
-        `Error ${modalMode === "add" ? "adding" : "updating"} supplier:`,
-        error
-      );
-
-      handleCloseModal();
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
-  // Handle supplier delete
   const handleDeleteSupplier = async (id) => {
-    const supplier = suppliers.find((cat) => cat._id === id);
+    const supplier = suppliers.find((sup) => sup._id === id);
 
-    // Show confirmation
     const result = await Swal.fire({
-      title: "Are you sure?",
-      html: `You want to delete category <strong>"${supplier?.name}"</strong>?`,
+      title: "Apakah Anda yakin?",
+      html: `Anda ingin menghapus supplier <strong>"${supplier?.name}"</strong>?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
       cancelButtonColor: "#6c757d",
-      confirmButtonText: "Yes, delete it!",
-      cancelButtonText: "Cancel",
+      confirmButtonText: "Ya, hapus!",
+      cancelButtonText: "Batal",
       reverseButtons: true,
       focusCancel: true,
     });
 
     if (result.isConfirmed) {
-      // Show loading
       Swal.fire({
-        title: "Deleting Category...",
-        text: "Please wait",
+        title: "Menghapus Supplier...",
+        text: "Harap tunggu",
         allowOutsideClick: false,
         didOpen: () => {
           Swal.showLoading();
@@ -261,35 +130,37 @@ const Supplier = () => {
       });
 
       try {
-        await axios.delete(`http://localhost:5000/api/supliers/${id}`, {
+        await axios.delete(`http://localhost:5000/api/suppliers/${id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("userToken")}`,
           },
         });
 
-        // Success with API
         Toast.fire({
           icon: "success",
-          title: "Deleted!",
-          text: "Category has been deleted successfully.",
+          title: "Terhapus!",
+          text: "Supplier berhasil dihapus.",
         });
 
         fetchSuppliers();
       } catch (error) {
-        console.error("Error deleting supplier: ", error);
+        console.error("Gagal menghapus supplier: ", error);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Gagal menghapus supplier",
+        });
       }
     }
   };
 
   return (
     <div className="supplier-page">
-      {/* Breadcrumb */}
       <CRow className="mb-3">
         <CCol>
           <CBreadcrumb>
-            <CBreadcrumbItem href="/dashboard">Home</CBreadcrumbItem>
-            <CBreadcrumbItem>Supplier</CBreadcrumbItem>
-            <CBreadcrumbItem active>Data Supplier</CBreadcrumbItem>
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem active>Supplier</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
       </CRow>
@@ -304,12 +175,11 @@ const Supplier = () => {
               </h5>
             </CCardHeader>
             <CCardBody>
-              {/* Toolbar */}
               <CRow className="mb-4">
                 <CCol sm={12} lg={8} className="mb-2 mb-lg-0">
                   <CInputGroup>
                     <CFormInput
-                      placeholder="Search by name or description..."
+                      placeholder="Cari berdasarkan nama, kontak, telepon atau alamat..."
                       value={search}
                       onChange={handleSearchChange}
                       className="border-primary"
@@ -318,7 +188,7 @@ const Supplier = () => {
                       type="button"
                       color="primary"
                       variant="outline"
-                      title="Search"
+                      title="Cari"
                     >
                       <CIcon icon={cilSearch} />
                     </CButton>
@@ -328,17 +198,17 @@ const Supplier = () => {
                   <CButtonGroup>
                     <CButton
                       color="success"
-                      onClick={handleAddSupplier}
-                      title="Add new supplier"
+                      onClick={() => navigate("/supplier/suppliers/add")}
+                      title="Tambah supplier baru"
                     >
                       <CIcon icon={cilPlus} className="me-1" />
-                      Add Supplier
+                      Tambah Supplier
                     </CButton>
                     <CButton
                       color="secondary"
                       onClick={fetchSuppliers}
                       disabled={loading}
-                      title="Refresh data"
+                      title="Muat ulang data"
                     >
                       <CIcon icon={cilReload} />
                     </CButton>
@@ -346,11 +216,10 @@ const Supplier = () => {
                 </CCol>
               </CRow>
 
-              {/* Suppliers Table */}
               {loading ? (
                 <div className="d-flex justify-content-center align-items-center py-5">
                   <CSpinner color="primary" className="me-2" />
-                  <span>Loading supplier...</span>
+                  <span>Memuat data supplier...</span>
                 </div>
               ) : (
                 <>
@@ -362,17 +231,19 @@ const Supplier = () => {
                             No
                           </CTableHeaderCell>
                           <CTableHeaderCell scope="col">
-                            Supplier Name
+                            Nama Supplier
                           </CTableHeaderCell>
                           <CTableHeaderCell scope="col">
-                            Contact
+                            Kontak
                           </CTableHeaderCell>
-                          <CTableHeaderCell scope="col">Phone</CTableHeaderCell>
                           <CTableHeaderCell scope="col">
-                            Address
+                            Telepon
+                          </CTableHeaderCell>
+                          <CTableHeaderCell scope="col">
+                            Alamat
                           </CTableHeaderCell>
                           <CTableHeaderCell scope="col" className="text-center">
-                            Actions
+                            Aksi
                           </CTableHeaderCell>
                         </CTableRow>
                       </CTableHead>
@@ -398,17 +269,17 @@ const Supplier = () => {
                               </CTableDataCell>
                               <CTableDataCell>
                                 <span className="text-muted">
-                                  {supplier.contact || "No contact"}
+                                  {supplier.contact || "Tidak ada kontak"}
                                 </span>
                               </CTableDataCell>
                               <CTableDataCell>
                                 <span className="text-muted">
-                                  {supplier.phone || "No phone"}
+                                  {supplier.phone || "Tidak ada telepon"}
                                 </span>
                               </CTableDataCell>
                               <CTableDataCell>
                                 <span className="text-muted">
-                                  {supplier.address || "No address"}
+                                  {supplier.address || "Tidak ada alamat"}
                                 </span>
                               </CTableDataCell>
                               <CTableDataCell className="text-center">
@@ -416,7 +287,11 @@ const Supplier = () => {
                                   <CButton
                                     color="info"
                                     variant="outline"
-                                    onClick={() => handleEditSupplier(supplier)}
+                                    onClick={() =>
+                                      navigate(
+                                        `/supplier/suppliers/edit/${supplier._id}`
+                                      )
+                                    }
                                     title="Edit Supplier"
                                   >
                                     <CIcon icon={cilPencil} />
@@ -427,7 +302,7 @@ const Supplier = () => {
                                     onClick={() =>
                                       handleDeleteSupplier(supplier._id)
                                     }
-                                    title="Delete Supplier"
+                                    title="Hapus Supplier"
                                   >
                                     <CIcon icon={cilTrash} />
                                   </CButton>
@@ -438,7 +313,7 @@ const Supplier = () => {
                         ) : (
                           <CTableRow>
                             <CTableDataCell
-                              colSpan="5"
+                              colSpan="6"
                               className="text-center py-5"
                             >
                               <div className="text-muted">
@@ -447,14 +322,15 @@ const Supplier = () => {
                                   size="xl"
                                   className="mb-3 text-primary"
                                 />
-                                <h6>No supplier found</h6>
+                                <h6>Tidak ada supplier ditemukan</h6>
                                 {search ? (
                                   <p className="mb-2">
-                                    No results for "{search}"
+                                    Tidak ada hasil untuk "{search}"
                                   </p>
                                 ) : (
                                   <p className="mb-2">
-                                    Start by adding your first supplier
+                                    Mulai dengan menambahkan supplier pertama
+                                    Anda
                                   </p>
                                 )}
                                 {search && (
@@ -463,7 +339,7 @@ const Supplier = () => {
                                     onClick={() => setSearch("")}
                                     className="p-0"
                                   >
-                                    Clear search
+                                    Hapus pencarian
                                   </CButton>
                                 )}
                               </div>
@@ -474,26 +350,26 @@ const Supplier = () => {
                     </CTable>
                   </div>
 
-                  {/* Pagination */}
                   {totalPages > 1 && (
                     <div className="d-flex justify-content-between align-items-center">
                       <div className="text-muted small">
-                        Showing{" "}
+                        Menampilkan{" "}
                         {filteredSuppliers.length > 0
                           ? indexOfFirstItem + 1
                           : 0}{" "}
-                        to {Math.min(indexOfLastItem, filteredSuppliers.length)}{" "}
-                        of {filteredSuppliers.length} entries{" "}
+                        sampai{" "}
+                        {Math.min(indexOfLastItem, filteredSuppliers.length)}{" "}
+                        dari {filteredSuppliers.length} data{" "}
                         {search &&
-                          ` (filtered from ${suppliers.length} total) `}
+                          ` (difilter dari ${suppliers.length} total) `}
                       </div>
 
-                      <CPagination aria-label="Supplier pagination">
+                      <CPagination aria-label="Navigasi halaman supplier">
                         <CPaginationItem
                           disabled={currentPage === 1}
                           onClick={() => setCurrentPage(currentPage - 1)}
                         >
-                          Previous
+                          Sebelumnya
                         </CPaginationItem>
 
                         {Array.from(
@@ -526,18 +402,17 @@ const Supplier = () => {
                           disabled={currentPage === totalPages}
                           onClick={() => setCurrentPage(currentPage + 1)}
                         >
-                          Next
+                          Selanjutnya
                         </CPaginationItem>
                       </CPagination>
                     </div>
                   )}
 
-                  {/* Summary for single page */}
                   {totalPages <= 1 && (
                     <div className="text-muted small mt-3 text-center">
-                      Showing {filteredSuppliers.length} of {suppliers.length}{" "}
-                      suppliers
-                      {search && ` matching "${search}"`}
+                      Menampilkan {filteredSuppliers.length} dari{" "}
+                      {suppliers.length} supplier
+                      {search && ` yang cocok dengan "${search}"`}
                     </div>
                   )}
                 </>
@@ -546,117 +421,6 @@ const Supplier = () => {
           </CCard>
         </CCol>
       </CRow>
-
-      {/* Add/Edit Modal */}
-      <CModal
-        visible={showModal}
-        onClose={handleCloseModal}
-        backdrop="static"
-        size="lg"
-        className="category-modal"
-      >
-        <CModalHeader>
-          <CModalTitle>
-            <CIcon icon={cilTags} className="me-2" />
-            {modalMode === "add" ? "Add New Supplier" : "Edit Supplier"}
-          </CModalTitle>
-        </CModalHeader>
-        <CForm onSubmit={handleSubmit}>
-          <CModalBody>
-            <CRow>
-              <CCol md={12}>
-                <div className="mb-3">
-                  <CFormLabel htmlFor="name">
-                    Supplier Name <span className="text-danger">*</span>
-                  </CFormLabel>
-                  <CFormInput
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Enter supplier name"
-                    maxLength={50}
-                    required
-                    className="border-primary"
-                  />
-                </div>
-              </CCol>
-            </CRow>
-
-            <CRow>
-              <CCol md={12}>
-                <div className="mb-3">
-                  <CFormLabel htmlFor="contact">Contact</CFormLabel>
-                  <CFormInput
-                    id="contact"
-                    name="contact"
-                    rows={4}
-                    value={formData.contact}
-                    onChange={handleInputChange}
-                    placeholder="Enter supplier contact"
-                    maxLength={20}
-                    className="border-primary"
-                  />
-                </div>
-              </CCol>
-            </CRow>
-
-            <CRow>
-              <CCol md={12}>
-                <div className="mb-3">
-                  <CFormLabel htmlFor="phone">Phone</CFormLabel>
-                  <CFormInput
-                    id="phone"
-                    name="phone"
-                    rows={4}
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="Enter supplier phone"
-                    maxLength={20}
-                    className="border-primary"
-                  />
-                </div>
-              </CCol>
-            </CRow>
-
-            <CRow>
-              <CCol md={12}>
-                <div className="mb-3">
-                  <CFormLabel htmlFor="address">Address</CFormLabel>
-                  <CFormTextarea
-                    id="address"
-                    name="address"
-                    rows={4}
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    placeholder="Enter supplier address"
-                    maxLength={100}
-                    className="border-primary"
-                  />
-                </div>
-              </CCol>
-            </CRow>
-          </CModalBody>
-          <CModalFooter>
-            <CButton
-              color="secondary"
-              onClick={handleCloseModal}
-              disabled={formLoading}
-            >
-              Cancel
-            </CButton>
-            <CButton
-              color="primary"
-              type="submit"
-              disabled={formLoading || !formData.name.trim()}
-            >
-              {formLoading && <CSpinner size="sm" className="me-2" />}
-              {modalMode === "add" ? "Add Supplier" : "Update Supplier"}
-            </CButton>
-          </CModalFooter>
-        </CForm>
-      </CModal>
     </div>
   );
 };

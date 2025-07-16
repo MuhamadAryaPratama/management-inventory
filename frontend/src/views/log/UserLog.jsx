@@ -27,7 +27,8 @@ import CIcon from "@coreui/icons-react";
 import { cilSearch, cilCalendar, cilUser, cilClock } from "@coreui/icons";
 
 const UserLog = () => {
-  const [logs, setLogs] = useState([]);
+  const [allLogs, setAllLogs] = useState([]);
+  const [displayedLogs, setDisplayedLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -35,7 +36,7 @@ const UserLog = () => {
   const [logsPerPage, setLogsPerPage] = useState(10);
   const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [pagination, setPagination] = useState({});
+  const [filteredLogs, setFilteredLogs] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Update current time every second for live duration calculation
@@ -47,10 +48,7 @@ const UserLog = () => {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    fetchUserLogs();
-  }, [currentPage, logsPerPage]);
-
+  // Fetch all logs from backend
   const fetchUserLogs = async () => {
     try {
       setLoading(true);
@@ -68,30 +66,14 @@ const UserLog = () => {
         throw new Error("Token tidak ditemukan. Silakan login kembali.");
       }
 
-      // Build query parameters
-      const queryParams = new URLSearchParams({
-        page: currentPage,
-        limit: logsPerPage,
+      const response = await fetch(`http://localhost:5000/api/logs`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
       });
-
-      if (statusFilter) queryParams.append("status", statusFilter);
-      if (searchTerm) queryParams.append("search", searchTerm);
-      if (dateFilter) {
-        queryParams.append("startDate", dateFilter);
-        queryParams.append("endDate", dateFilter);
-      }
-
-      const response = await fetch(
-        `http://localhost:5000/api/logs?${queryParams}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          credentials: "include",
-        }
-      );
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -107,8 +89,8 @@ const UserLog = () => {
       const data = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
-        setLogs(data.data);
-        setPagination(data.pagination || {});
+        setAllLogs(data.data);
+        setFilteredLogs(data.data);
       } else {
         throw new Error("Format data tidak valid");
       }
@@ -119,6 +101,75 @@ const UserLog = () => {
       setLoading(false);
     }
   };
+
+  // Apply filters to logs
+  const applyFilters = () => {
+    let filtered = [...allLogs];
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (log) =>
+          log.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          log.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply date filter
+    if (dateFilter) {
+      const filterDate = new Date(dateFilter);
+      filtered = filtered.filter((log) => {
+        const loginDate = new Date(log.loginTime);
+        return loginDate.toDateString() === filterDate.toDateString();
+      });
+    }
+
+    // Apply status filter
+    if (statusFilter) {
+      filtered = filtered.filter((log) => log.status === statusFilter);
+    }
+
+    setFilteredLogs(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  // Apply pagination to filtered logs
+  const applyPagination = () => {
+    const startIndex = (currentPage - 1) * logsPerPage;
+    const endIndex = startIndex + logsPerPage;
+    const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+    setDisplayedLogs(paginatedLogs);
+  };
+
+  // Calculate pagination info
+  const getPaginationInfo = () => {
+    const totalItems = filteredLogs.length;
+    const totalPages = Math.ceil(totalItems / logsPerPage);
+
+    return {
+      currentPage,
+      totalPages,
+      totalItems,
+      itemsPerPage: logsPerPage,
+      startItem: totalItems > 0 ? (currentPage - 1) * logsPerPage + 1 : 0,
+      endItem: Math.min(currentPage * logsPerPage, totalItems),
+    };
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchUserLogs();
+  }, []);
+
+  // Apply filters when dependencies change
+  useEffect(() => {
+    applyFilters();
+  }, [allLogs, searchTerm, dateFilter, statusFilter]);
+
+  // Apply pagination when filtered logs or pagination settings change
+  useEffect(() => {
+    applyPagination();
+  }, [filteredLogs, currentPage, logsPerPage]);
 
   const formatDateTime = (dateString) => {
     if (!dateString) return "-";
@@ -238,8 +289,7 @@ const UserLog = () => {
   };
 
   const handleSearch = () => {
-    setCurrentPage(1);
-    fetchUserLogs();
+    applyFilters();
   };
 
   const clearFilters = () => {
@@ -247,8 +297,14 @@ const UserLog = () => {
     setDateFilter("");
     setStatusFilter("");
     setCurrentPage(1);
-    fetchUserLogs();
   };
+
+  const handleLogsPerPageChange = (newLogsPerPage) => {
+    setLogsPerPage(Number(newLogsPerPage));
+    setCurrentPage(1);
+  };
+
+  const paginationInfo = getPaginationInfo();
 
   if (loading) {
     return (
@@ -344,10 +400,7 @@ const UserLog = () => {
                 <CCol md={2}>
                   <CFormSelect
                     value={logsPerPage}
-                    onChange={(e) => {
-                      setLogsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
+                    onChange={(e) => handleLogsPerPageChange(e.target.value)}
                   >
                     <option value={10}>10 per halaman</option>
                     <option value={25}>25 per halaman</option>
@@ -363,14 +416,20 @@ const UserLog = () => {
               </CRow>
 
               {/* Results Info */}
-              {pagination.totalItems && (
-                <div className="mb-3">
-                  <small className="text-medium-emphasis">
-                    Menampilkan halaman {pagination.currentPage} dari{" "}
-                    {pagination.totalPages} ({pagination.totalItems} total log)
-                  </small>
-                </div>
-              )}
+              <div className="mb-3">
+                <small className="text-medium-emphasis">
+                  Menampilkan {paginationInfo.startItem} -{" "}
+                  {paginationInfo.endItem} dari {paginationInfo.totalItems}{" "}
+                  total log
+                  {paginationInfo.totalItems > 0 && (
+                    <span>
+                      {" "}
+                      | Halaman {paginationInfo.currentPage} dari{" "}
+                      {paginationInfo.totalPages}
+                    </span>
+                  )}
+                </small>
+              </div>
 
               {/* Table */}
               <CTable hover responsive>
@@ -391,7 +450,7 @@ const UserLog = () => {
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {logs.length === 0 ? (
+                  {displayedLogs.length === 0 ? (
                     <CTableRow>
                       <CTableDataCell colSpan="8" className="text-center py-4">
                         <div className="text-medium-emphasis">
@@ -400,7 +459,11 @@ const UserLog = () => {
                             size="3xl"
                             className="mb-3 opacity-50"
                           />
-                          <div>Tidak ada log pengguna yang ditemukan</div>
+                          <div>
+                            {filteredLogs.length === 0 && allLogs.length > 0
+                              ? "Tidak ada log yang sesuai dengan filter"
+                              : "Tidak ada log pengguna yang ditemukan"}
+                          </div>
                           {(searchTerm || dateFilter || statusFilter) && (
                             <CButton
                               color="link"
@@ -414,17 +477,14 @@ const UserLog = () => {
                       </CTableDataCell>
                     </CTableRow>
                   ) : (
-                    logs.map((log, index) => {
+                    displayedLogs.map((log, index) => {
                       const duration = calculateDuration(log);
+                      const absoluteIndex =
+                        (currentPage - 1) * logsPerPage + index + 1;
 
                       return (
                         <CTableRow key={log._id || index}>
-                          <CTableDataCell>
-                            {((pagination.currentPage || currentPage) - 1) *
-                              logsPerPage +
-                              index +
-                              1}
-                          </CTableDataCell>
+                          <CTableDataCell>{absoluteIndex}</CTableDataCell>
                           <CTableDataCell>
                             <div className="fw-semibold">
                               {log.name || "N/A"}
@@ -461,7 +521,6 @@ const UserLog = () => {
                                 </span>
                               )}
                             </CBadge>
-                            {log.status === "active"}
                           </CTableDataCell>
                           <CTableDataCell>
                             {getStatusBadge(log.status)}
@@ -479,7 +538,7 @@ const UserLog = () => {
               </CTable>
 
               {/* Pagination */}
-              {pagination.totalPages > 1 && (
+              {paginationInfo.totalPages > 1 && (
                 <div className="d-flex justify-content-center mt-4">
                   <CPagination>
                     <CPaginationItem
@@ -489,11 +548,11 @@ const UserLog = () => {
                       Previous
                     </CPaginationItem>
 
-                    {[...Array(pagination.totalPages)].map((_, index) => {
+                    {[...Array(paginationInfo.totalPages)].map((_, index) => {
                       const pageNumber = index + 1;
                       const isVisible =
                         pageNumber === 1 ||
-                        pageNumber === pagination.totalPages ||
+                        pageNumber === paginationInfo.totalPages ||
                         (pageNumber >= currentPage - 2 &&
                           pageNumber <= currentPage + 2);
 
@@ -523,7 +582,7 @@ const UserLog = () => {
                     })}
 
                     <CPaginationItem
-                      disabled={currentPage === pagination.totalPages}
+                      disabled={currentPage === paginationInfo.totalPages}
                       onClick={() => handlePageChange(currentPage + 1)}
                     >
                       Next

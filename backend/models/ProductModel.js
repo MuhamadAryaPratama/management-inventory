@@ -26,10 +26,6 @@ const Product = new mongoose.Schema(
       default: 0,
       min: [0, "Minimum stock cannot be negative"],
     },
-    image: {
-      type: String,
-      default: "default-product.jpg",
-    },
     category: {
       type: mongoose.Schema.ObjectId,
       ref: "Categories",
@@ -112,6 +108,23 @@ Product.pre("save", function (next) {
 Product.pre(["updateOne", "findOneAndUpdate"], function (next) {
   this.set({ updatedAt: new Date() });
   next();
+});
+
+// Add pre-remove hook to delete related transactions
+Product.pre("remove", async function (next) {
+  try {
+    // Get reference to Transaction model to avoid circular dependency
+    const Transaction = mongoose.model("Transactions");
+
+    // Delete all transactions related to this product
+    await Transaction.deleteMany({ product: this._id });
+
+    console.log(`Deleted all transactions for product ${this._id}`);
+    next();
+  } catch (err) {
+    console.error("Error deleting related transactions:", err);
+    next(err);
+  }
 });
 
 export default mongoose.model("Products", Product);

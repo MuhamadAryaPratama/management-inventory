@@ -22,10 +22,13 @@ export const calculateEOQ = asyncHandler(async (req, res) => {
   }
 
   // Calculate EOQ
-  const eoq = Math.sqrt((2 * annualDemand * orderingCost) / holdingCost);
-  const orderFrequency = annualDemand / eoq;
-  const totalCost =
-    (orderingCost * annualDemand) / eoq + (holdingCost * eoq) / 2;
+  const eoq = Math.round(
+    Math.sqrt((2 * annualDemand * orderingCost) / holdingCost)
+  );
+  const orderFrequency = Math.round((annualDemand / eoq) * 100) / 100; // Biarkan 2 desimal untuk frekuensi
+  const totalCost = Math.round(
+    (orderingCost * annualDemand) / eoq + (holdingCost * eoq) / 2
+  );
 
   // Create or update EOQ record
   let eoqRecord = await EOQ.findOne({ product });
