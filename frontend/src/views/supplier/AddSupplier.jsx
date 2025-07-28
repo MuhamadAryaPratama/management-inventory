@@ -55,7 +55,7 @@ const AddSupplier = () => {
         title: "Berhasil!",
         text: "Supplier berhasil ditambahkan!",
       }).then(() => {
-        navigate("/suppliers");
+        navigate("/supplier/suppliers");
       });
     } catch (error) {
       console.error("Gagal menambahkan supplier:", error);
@@ -75,7 +75,10 @@ const AddSupplier = () => {
         <CCol>
           <CBreadcrumb>
             <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
-            <CBreadcrumbItem href="/suppliers">Supplier</CBreadcrumbItem>
+            <CBreadcrumbItem>Manajemen Barang</CBreadcrumbItem>
+            <CBreadcrumbItem href="/supplier/suppliers">
+              Data Supplier
+            </CBreadcrumbItem>
             <CBreadcrumbItem active>Tambah Supplier</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>

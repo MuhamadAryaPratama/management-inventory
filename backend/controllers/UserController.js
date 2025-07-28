@@ -63,13 +63,26 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Update user
+    // Update basic fields
     user.name = req.body.name || user.name;
     user.phone = req.body.phone || user.phone;
     user.address = req.body.address || user.address;
     user.email = req.body.email || user.email;
-    user.role = req.body.role || user.role;
 
+    // Handle role changes
+    if (req.body.role) {
+      // Only pemilik can change roles
+      if (req.user.role !== "pemilik") {
+        return res.status(403).json({
+          message: "Hanya pemilik yang dapat mengubah role",
+        });
+      }
+
+      // Pemilik can change any role including their own
+      user.role = req.body.role;
+    }
+
+    // Handle password changes
     if (req.body.password) {
       user.password = req.body.password;
     }
@@ -97,9 +110,37 @@ export const deleteUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Check if trying to delete yourself
+    if (req.user._id.toString() === user._id.toString()) {
+      return res.status(400).json({
+        message: "Tidak dapat menghapus akun sendiri",
+      });
+    }
+
+    // Only pemilik can delete users
+    if (req.user.role !== "pemilik") {
+      return res.status(403).json({
+        message: "Hanya pemilik yang dapat menghapus user",
+      });
+    }
+
     await User.findByIdAndDelete(req.params.id);
 
     res.status(200).json({ success: true, message: "User deleted" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getCurrentUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

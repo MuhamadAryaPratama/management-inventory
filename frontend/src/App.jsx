@@ -33,6 +33,7 @@ import Eoq from "./views/eoq/Eoq";
 import CalculatorRop from "./views/rop/CalculatorRop";
 import Rop from "./views/rop/Rop";
 import User from "./views/users/User";
+import EditUser from "./views/users/EditUser";
 import UserLog from "./views/log/UserLog";
 import EditProduct from "./views/products/EditProduct";
 import StockReport from "./views/report/StockReport";
@@ -149,6 +150,14 @@ function App() {
               element={
                 <RoleBasedRoute allowedRoles={["pemilik"]}>
                   <User />
+                </RoleBasedRoute>
+              }
+            />
+            <Route
+              path="/user-management/edit/:id"
+              element={
+                <RoleBasedRoute allowedRoles={["pemilik"]}>
+                  <EditUser />
                 </RoleBasedRoute>
               }
             />

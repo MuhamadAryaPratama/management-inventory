@@ -15,9 +15,11 @@ import {
   CSpinner,
   CInputGroup,
   CInputGroupText,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
-import { cilMinus, cilArrowCircleTop, cilMoney } from "@coreui/icons";
+import { cilPlus, cilArrowCircleTop, cilMoney } from "@coreui/icons";
 import axios from "axios";
 import Swal from "sweetalert2";
 
@@ -447,6 +449,16 @@ const OutgoingGoods = () => {
 
   return (
     <>
+      <CRow>
+        <CCol>
+          <CBreadcrumb className="mb-3">
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem>Transaksi Barang</CBreadcrumbItem>
+            <CBreadcrumbItem active>Tambah Barang Keluar</CBreadcrumbItem>
+          </CBreadcrumb>
+        </CCol>
+      </CRow>
+
       {alert.show && (
         <CAlert
           color={alert.color}
@@ -668,10 +680,7 @@ const OutgoingGoods = () => {
                         Memproses...
                       </>
                     ) : (
-                      <>
-                        <CIcon icon={cilMinus} className="me-2" />
-                        Konfirmasi Barang Keluar
-                      </>
+                      <>Konfirmasi Barang Keluar</>
                     )}
                   </CButton>
                 </div>

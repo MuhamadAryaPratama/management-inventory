@@ -6,10 +6,13 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  getCurrentUser,
 } from "../controllers/UserController.js";
 import asyncHandler from "express-async-handler";
 
 const router = express.Router();
+
+router.route("/me").get(protect, asyncHandler(getCurrentUser));
 
 router
   .route("/")

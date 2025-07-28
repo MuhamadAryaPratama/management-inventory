@@ -335,14 +335,9 @@ const StockReport = () => {
         <CRow>
           <CCol>
             <CBreadcrumb className="mb-3">
-              <CBreadcrumbItem href="/dashboard">
-                <Home size={14} className="me-1" />
-                Beranda
-              </CBreadcrumbItem>
-              <CBreadcrumbItem active>
-                <List size={14} className="me-1" />
-                Laporan Stok
-              </CBreadcrumbItem>
+              <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+              <CBreadcrumbItem>Laporan</CBreadcrumbItem>
+              <CBreadcrumbItem active>Laporan Stok Barang</CBreadcrumbItem>
             </CBreadcrumb>
           </CCol>
         </CRow>

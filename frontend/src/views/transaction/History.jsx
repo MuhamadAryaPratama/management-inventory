@@ -21,9 +21,8 @@ import {
   CInputGroupText,
   CFormInput,
   CFormSelect,
-  CNav,
-  CNavItem,
-  CNavLink,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import {
@@ -46,7 +45,6 @@ const History = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("all");
   const [alert, setAlert] = useState({
     show: false,
     message: "",
@@ -200,15 +198,9 @@ const History = () => {
     });
   };
 
-  // Filter transactions based on active tab and filters
+  // Filter transactions based on filters
   const getFilteredTransactions = () => {
     let filtered = transactions;
-
-    if (activeTab === "incoming") {
-      filtered = filtered.filter((t) => t.type === "pembelian");
-    } else if (activeTab === "outgoing") {
-      filtered = filtered.filter((t) => t.type === "penjualan");
-    }
 
     if (searchTerm) {
       filtered = filtered.filter(
@@ -299,6 +291,16 @@ const History = () => {
 
   return (
     <>
+      <CRow>
+        <CCol>
+          <CBreadcrumb className="mb-3">
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem>Transaksi Barang</CBreadcrumbItem>
+            <CBreadcrumbItem active>Riwayat Transaksi</CBreadcrumbItem>
+          </CBreadcrumb>
+        </CCol>
+      </CRow>
+
       {alert.show && (
         <CAlert
           color={alert.color}
@@ -385,39 +387,6 @@ const History = () => {
                 </CCol>
               </CRow>
 
-              {/* Tabs */}
-              <CNav variant="tabs" className="mb-3">
-                <CNavItem>
-                  <CNavLink
-                    active={activeTab === "all"}
-                    onClick={() => setActiveTab("all")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    Semua Transaksi ({stats.total})
-                  </CNavLink>
-                </CNavItem>
-                <CNavItem>
-                  <CNavLink
-                    active={activeTab === "incoming"}
-                    onClick={() => setActiveTab("incoming")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CIcon icon={cilArrowCircleBottom} className="me-1" />
-                    Barang Masuk ({stats.incoming})
-                  </CNavLink>
-                </CNavItem>
-                <CNavItem>
-                  <CNavLink
-                    active={activeTab === "outgoing"}
-                    onClick={() => setActiveTab("outgoing")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CIcon icon={cilArrowCircleTop} className="me-1" />
-                    Barang Keluar ({stats.outgoing})
-                  </CNavLink>
-                </CNavItem>
-              </CNav>
-
               {/* Filters */}
               <CRow className="mb-3">
                 <CCol md={4}>
@@ -471,7 +440,6 @@ const History = () => {
                       setSearchTerm("");
                       setDateFilter("");
                       setTypeFilter("all");
-                      setActiveTab("all");
                     }}
                   >
                     Reset Filter
@@ -485,16 +453,9 @@ const History = () => {
                   <CSpinner />
                   <p>Memuat data transaksi...</p>
                 </div>
-              ) : filteredTransactions.length === 0 ? (
+              ) : transactions.length === 0 ? (
                 <div className="text-center my-5">
-                  <p>Tidak ada data transaksi yang ditemukan</p>
-                  <CButton
-                    color="primary"
-                    variant="outline"
-                    onClick={fetchTransactions}
-                  >
-                    Coba Lagi
-                  </CButton>
+                  <p>Belum ada data transaksi</p>
                 </div>
               ) : (
                 <>

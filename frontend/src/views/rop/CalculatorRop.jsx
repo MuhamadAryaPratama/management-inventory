@@ -14,8 +14,6 @@ import {
   CTable,
   CTableBody,
   CTableDataCell,
-  CTableHead,
-  CTableHeaderCell,
   CTableRow,
   CSpinner,
   CModal,
@@ -23,6 +21,8 @@ import {
   CModalFooter,
   CModalHeader,
   CModalTitle,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import { cilCalculator, cilChart, cilReload, cilInfo } from "@coreui/icons";
@@ -277,6 +277,17 @@ const CalculatorRop = () => {
 
   return (
     <>
+      <CRow>
+        <CCol>
+          <CBreadcrumb className="mb-3">
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem>Perhitungan EOQ & ROP</CBreadcrumbItem>
+            <CBreadcrumbItem>ROP</CBreadcrumbItem>
+            <CBreadcrumbItem active>Kalkulator ROP</CBreadcrumbItem>
+          </CBreadcrumb>
+        </CCol>
+      </CRow>
+
       <CRow>
         <CCol xs={12}>
           <CCard className="mb-4">

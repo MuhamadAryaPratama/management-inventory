@@ -16,7 +16,6 @@ import {
   CInputGroup,
   CFormInput,
   CFormSelect,
-  CButtonGroup,
   CBadge,
   CAlert,
   CPagination,
@@ -241,7 +240,21 @@ const Product = () => {
         <CCol xs={12}>
           <CCard className="mb-4">
             <CCardHeader>
-              <h5>Daftar Produk</h5>
+              <div className="d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">Daftar Produk</h5>
+                <div>
+                  <CButton
+                    color="primary"
+                    onClick={handleAddProduct}
+                    className="me-1"
+                  >
+                    Tambah Barang
+                  </CButton>
+                  <CButton color="secondary" onClick={handleRefresh}>
+                    <CIcon icon={cilReload} />
+                  </CButton>
+                </div>
+              </div>
             </CCardHeader>
             <CCardBody>
               <CRow className="mb-3">
@@ -257,11 +270,13 @@ const Product = () => {
                     </CButton>
                   </CInputGroup>
                 </CCol>
-                <CCol sm={12} md={3} className="mb-2 mb-md-0">
+                <CCol sm={12} md={6}>
                   <CFormSelect
                     value={filterCategory}
                     onChange={handleCategoryChange}
                     disabled={categoriesLoading}
+                    className="float-md-end"
+                    style={{ width: "auto", minWidth: "200px" }}
                   >
                     <option value="">Semua Kategori</option>
                     {categories.map((category) => (
@@ -270,16 +285,6 @@ const Product = () => {
                       </option>
                     ))}
                   </CFormSelect>
-                </CCol>
-                <CCol sm={12} md={3} className="d-flex justify-content-md-end">
-                  <CButtonGroup>
-                    <CButton color="primary" onClick={handleAddProduct}>
-                      <CIcon icon={cilPlus} className="me-1" /> Tambah
-                    </CButton>
-                    <CButton color="secondary" onClick={handleRefresh}>
-                      <CIcon icon={cilReload} />
-                    </CButton>
-                  </CButtonGroup>
                 </CCol>
               </CRow>
 
@@ -336,11 +341,12 @@ const Product = () => {
                               {formatCurrency(product.price)}
                             </CTableDataCell>
                             <CTableDataCell>
-                              <CButtonGroup size="sm">
+                              <div className="d-flex">
                                 <CButton
                                   color="info"
                                   variant="outline"
                                   onClick={() => handleEditProduct(product._id)}
+                                  className="me-2"
                                 >
                                   <CIcon icon={cilPencil} />
                                 </CButton>
@@ -356,7 +362,7 @@ const Product = () => {
                                 >
                                   <CIcon icon={cilTrash} />
                                 </CButton>
-                              </CButtonGroup>
+                              </div>
                             </CTableDataCell>
                           </CTableRow>
                         ))

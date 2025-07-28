@@ -30,6 +30,8 @@ import {
   CDropdownToggle,
   CDropdownMenu,
   CDropdownItem,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import {
@@ -164,7 +166,11 @@ const Rop = () => {
 
   const getRopStatus = useCallback((rop, currentStock) => {
     if (currentStock === undefined || currentStock === null || !rop.rop) {
-      return { status: "unknown", label: "Unknown", color: "secondary" };
+      return {
+        status: "unknown",
+        label: "Tidak Diketahui",
+        color: "secondary",
+      };
     }
 
     const ropValue = parseFloat(rop.rop) || 0;
@@ -200,6 +206,17 @@ const Rop = () => {
   return (
     <>
       <CRow>
+        <CCol>
+          <CBreadcrumb className="mb-3">
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem>Perhitungan EOQ & ROP</CBreadcrumbItem>
+            <CBreadcrumbItem>ROP</CBreadcrumbItem>
+            <CBreadcrumbItem active>Data ROP Barang</CBreadcrumbItem>
+          </CBreadcrumb>
+        </CCol>
+      </CRow>
+
+      <CRow>
         <CCol xs={12}>
           <CCard className="mb-4">
             <CCardHeader>
@@ -230,12 +247,12 @@ const Rop = () => {
                     {loading ? (
                       <>
                         <CSpinner size="sm" className="me-2" />
-                        Loading...
+                        Memuat...
                       </>
                     ) : (
                       <>
                         <CIcon icon={cilReload} className="me-2" />
-                        Refresh
+                        Muat Ulang
                       </>
                     )}
                   </CButton>
@@ -308,9 +325,9 @@ const Rop = () => {
                         <CTableHeaderCell>No</CTableHeaderCell>
                         <CTableHeaderCell>Produk</CTableHeaderCell>
                         <CTableHeaderCell>Lead Time (Hari)</CTableHeaderCell>
-                        <CTableHeaderCell>Daily Demand</CTableHeaderCell>
+                        <CTableHeaderCell>Permintaan Harian</CTableHeaderCell>
                         <CTableHeaderCell>ROP</CTableHeaderCell>
-                        <CTableHeaderCell>Stock Saat Ini</CTableHeaderCell>
+                        <CTableHeaderCell>Stok Saat Ini</CTableHeaderCell>
                         <CTableHeaderCell>Status</CTableHeaderCell>
                         <CTableHeaderCell>Terakhir Dihitung</CTableHeaderCell>
                         <CTableHeaderCell>Aksi</CTableHeaderCell>
@@ -327,7 +344,7 @@ const Rop = () => {
                                 {indexOfFirstItem + index + 1}
                               </CTableDataCell>
                               <CTableDataCell>
-                                {rop.product?.name || "N/A"}
+                                {rop.product?.name || "Tidak Tersedia"}
                               </CTableDataCell>
                               <CTableDataCell>
                                 {rop.leadTime || 0} hari
@@ -385,7 +402,7 @@ const Rop = () => {
                         disabled={currentPage === 1}
                         onClick={() => setCurrentPage(currentPage - 1)}
                       >
-                        Previous
+                        Sebelumnya
                       </CPaginationItem>
                       {[...Array(totalPages)].map((_, index) => (
                         <CPaginationItem
@@ -400,7 +417,7 @@ const Rop = () => {
                         disabled={currentPage === totalPages}
                         onClick={() => setCurrentPage(currentPage + 1)}
                       >
-                        Next
+                        Selanjutnya
                       </CPaginationItem>
                     </CPagination>
                   )}
@@ -433,12 +450,12 @@ const Rop = () => {
                         <strong>Nama Produk:</strong>
                       </p>
                       <p className="text-muted">
-                        {selectedRopDetail.product?.name || "N/A"}
+                        {selectedRopDetail.product?.name || "Tidak Tersedia"}
                       </p>
                     </CCol>
                     <CCol md={6}>
                       <p>
-                        <strong>Stock Saat Ini:</strong>
+                        <strong>Stok Saat Ini:</strong>
                       </p>
                       <p className="text-muted">
                         {getCurrentStock(selectedRopDetail.product)} unit
@@ -464,7 +481,7 @@ const Rop = () => {
                     </CCol>
                     <CCol md={4}>
                       <p>
-                        <strong>Daily Demand:</strong>
+                        <strong>Permintaan Harian:</strong>
                       </p>
                       <p className="text-muted">
                         {selectedRopDetail.dailyDemand || 0} unit/hari
@@ -537,7 +554,7 @@ const Rop = () => {
                 </CCardHeader>
                 <CCardBody>
                   <CAlert color="info">
-                    <strong>Formula:</strong> ROP = Daily Demand × Lead Time
+                    <strong>Rumus:</strong> ROP = Permintaan Harian × Lead Time
                     <br />
                     <strong>Perhitungan:</strong>{" "}
                     {selectedRopDetail.dailyDemand || 0} ×{" "}
@@ -547,17 +564,18 @@ const Rop = () => {
                     <br />
                     <strong>Interpretasi:</strong>
                     <br />
-                    Ketika stock mencapai{" "}
-                    {Math.ceil(selectedRopDetail.rop || 0)} unit atau kurang,
-                    maka perlu dilakukan pemesanan ulang untuk menghindari
-                    kehabisan stock selama lead time.
+                    Ketika stok mencapai {Math.ceil(
+                      selectedRopDetail.rop || 0
+                    )}{" "}
+                    unit atau kurang, maka perlu dilakukan pemesanan ulang untuk
+                    menghindari kehabisan stok selama lead time.
                   </CAlert>
 
                   {getCurrentStock(selectedRopDetail.product) <=
                     (selectedRopDetail.rop || 0) &&
                     selectedRopDetail.rop > 0 && (
                       <CAlert color="warning">
-                        <strong>Perhatian!</strong> Stock saat ini (
+                        <strong>Perhatian!</strong> Stok saat ini (
                         {getCurrentStock(selectedRopDetail.product)} unit) sudah
                         mencapai atau di bawah ROP. Disarankan untuk segera
                         melakukan pemesanan ulang.

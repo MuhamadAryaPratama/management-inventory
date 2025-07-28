@@ -13,6 +13,8 @@ import {
   CFormTextarea,
   CAlert,
   CSpinner,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import { cilPlus, cilArrowCircleBottom } from "@coreui/icons";
@@ -33,6 +35,7 @@ const IncomingGoods = () => {
   const [formData, setFormData] = useState({
     product: "",
     quantity: "",
+    purchasePrice: "",
     notes: "",
   });
   const [formErrors, setFormErrors] = useState({});
@@ -158,6 +161,43 @@ const IncomingGoods = () => {
     }
   };
 
+  // Format currency input
+  const formatCurrencyInput = (value) => {
+    // Remove all non-digit characters
+    const numericValue = value.replace(/\D/g, "");
+    return numericValue;
+  };
+
+  // Handle currency input changes
+  const handleCurrencyChange = (e) => {
+    const { name, value } = e.target;
+    const numericValue = formatCurrencyInput(value);
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: numericValue,
+    }));
+
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
+  };
+
+  // Format currency for display
+  const formatCurrency = (value) => {
+    if (!value) return "";
+    const numericValue = parseInt(value, 10);
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(numericValue);
+  };
+
   // Validate form
   const validateForm = () => {
     const errors = {};
@@ -171,6 +211,16 @@ const IncomingGoods = () => {
       errors.quantity = "Jumlah harus berupa angka positif";
     } else if (quantity > 10000) {
       errors.quantity = "Jumlah tidak boleh lebih dari 10,000";
+    }
+
+    // Validate purchase price if provided
+    if (formData.purchasePrice) {
+      const price = parseInt(formData.purchasePrice);
+      if (isNaN(price)) {
+        errors.purchasePrice = "Harga beli harus berupa angka";
+      } else if (price < 0) {
+        errors.purchasePrice = "Harga beli tidak boleh negatif";
+      }
     }
 
     setFormErrors(errors);
@@ -195,8 +245,12 @@ const IncomingGoods = () => {
     // Show confirmation dialog
     const selectedProduct = products.find((p) => p._id === formData.product);
     const quantity = parseInt(formData.quantity);
+    const purchasePrice = formData.purchasePrice
+      ? parseInt(formData.purchasePrice)
+      : null;
     const currentStock = getCurrentStock();
     const newStock = currentStock + quantity;
+    const totalValue = purchasePrice ? quantity * purchasePrice : 0;
 
     const confirmResult = await Swal.fire({
       title: "Konfirmasi Barang Masuk",
@@ -204,6 +258,20 @@ const IncomingGoods = () => {
         <div class="text-start">
           <p><strong>Produk:</strong> ${selectedProduct?.name || "N/A"}</p>
           <p><strong>Jumlah Masuk:</strong> <span class="text-success">+${quantity}</span></p>
+          ${
+            purchasePrice
+              ? `<p><strong>Harga Beli per Unit:</strong> ${formatCurrency(
+                  purchasePrice
+                )}</p>`
+              : ""
+          }
+          ${
+            purchasePrice
+              ? `<p><strong>Total Nilai Pembelian:</strong> ${formatCurrency(
+                  totalValue
+                )}</p>`
+              : ""
+          }
           <p><strong>Stok Saat Ini:</strong> ${currentStock}</p>
           <p><strong>Stok Setelah:</strong> <span class="text-success"><strong>${newStock}</strong></span></p>
           ${
@@ -254,6 +322,7 @@ const IncomingGoods = () => {
       const transactionData = {
         product: formData.product, // Product ID (required)
         quantity: quantity, // Quantity to add (required)
+        purchasePrice: purchasePrice, // Optional purchase price
         notes: formData.notes.trim() || "", // Optional notes
       };
 
@@ -286,6 +355,20 @@ const IncomingGoods = () => {
               <p><strong>Detail Transaksi:</strong></p>
               <p><strong>Produk:</strong> ${selectedProduct.name}</p>
               <p><strong>Jumlah Ditambahkan:</strong> <span class="text-success">+${quantity}</span></p>
+              ${
+                purchasePrice
+                  ? `<p><strong>Harga Beli:</strong> ${formatCurrency(
+                      purchasePrice
+                    )}</p>`
+                  : ""
+              }
+              ${
+                purchasePrice
+                  ? `<p><strong>Total Nilai:</strong> ${formatCurrency(
+                      totalValue
+                    )}</p>`
+                  : ""
+              }
               <p><strong>Stok Baru:</strong> <span class="text-success"><strong>${newStock}</strong></span></p>
             </div>
           `,
@@ -330,6 +413,7 @@ const IncomingGoods = () => {
     setFormData({
       product: "",
       quantity: "",
+      purchasePrice: "",
       notes: "",
     });
     setFormErrors({});
@@ -360,6 +444,16 @@ const IncomingGoods = () => {
 
   return (
     <>
+      <CRow>
+        <CCol>
+          <CBreadcrumb className="mb-3">
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem>Transaksi Barang</CBreadcrumbItem>
+            <CBreadcrumbItem active>Tambah Barang Masuk</CBreadcrumbItem>
+          </CBreadcrumb>
+        </CCol>
+      </CRow>
+
       {alert.show && (
         <CAlert
           color={alert.color}
@@ -456,6 +550,31 @@ const IncomingGoods = () => {
 
                   <CCol md={4}>
                     <div className="mb-3">
+                      <CFormLabel htmlFor="purchasePrice">
+                        Harga Beli (per Unit)
+                      </CFormLabel>
+                      <CFormInput
+                        type="text"
+                        id="purchasePrice"
+                        name="purchasePrice"
+                        value={formatCurrency(formData.purchasePrice)}
+                        onChange={handleCurrencyChange}
+                        placeholder="Masukkan harga beli"
+                        invalid={!!formErrors.purchasePrice}
+                      />
+                      {formErrors.purchasePrice && (
+                        <div className="invalid-feedback">
+                          {formErrors.purchasePrice}
+                        </div>
+                      )}
+                      <small className="text-muted">
+                        Kosongkan jika tidak ingin mencatat harga beli
+                      </small>
+                    </div>
+                  </CCol>
+
+                  <CCol md={4}>
+                    <div className="mb-3">
                       <CFormLabel>Stok Saat Ini</CFormLabel>
                       <CFormInput
                         type="text"
@@ -478,7 +597,7 @@ const IncomingGoods = () => {
                     </div>
                   </CCol>
 
-                  <CCol md={12}>
+                  <CCol md={8}>
                     <div className="mb-3">
                       <CFormLabel htmlFor="notes">Catatan</CFormLabel>
                       <CFormTextarea
@@ -519,10 +638,7 @@ const IncomingGoods = () => {
                         Menyimpan...
                       </>
                     ) : (
-                      <>
-                        <CIcon icon={cilPlus} className="me-2" />
-                        Simpan Barang Masuk
-                      </>
+                      <>Simpan Barang Masuk</>
                     )}
                   </CButton>
                 </div>

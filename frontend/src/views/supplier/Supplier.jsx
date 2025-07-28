@@ -15,12 +15,10 @@ import {
   CSpinner,
   CInputGroup,
   CFormInput,
-  CButtonGroup,
   CPagination,
   CPaginationItem,
   CBreadcrumb,
   CBreadcrumbItem,
-  CBadge,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import {
@@ -160,59 +158,49 @@ const Supplier = () => {
         <CCol>
           <CBreadcrumb>
             <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
-            <CBreadcrumbItem active>Supplier</CBreadcrumbItem>
+            <CBreadcrumbItem>Manajemen Barang</CBreadcrumbItem>
+            <CBreadcrumbItem active>Data Supplier</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
       </CRow>
 
       <CRow>
         <CCol xs={12}>
-          <CCard className="mb-4 shadow-sm">
-            <CCardHeader className="bg-primary text-white">
-              <h5 className="mb-0">
-                <CIcon icon={cilTags} className="me-2" />
-                Data Supplier
-              </h5>
+          <CCard className="mb-4">
+            <CCardHeader>
+              <div className="d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">Data Supplier</h5>
+                <div>
+                  <CButton
+                    color="primary"
+                    onClick={() => navigate("/supplier/suppliers/add")}
+                    className="me-2"
+                  >
+                    Tambah Supplier
+                  </CButton>
+                  <CButton
+                    color="secondary"
+                    onClick={fetchSuppliers}
+                    disabled={loading}
+                  >
+                    <CIcon icon={cilReload} />
+                  </CButton>
+                </div>
+              </div>
             </CCardHeader>
             <CCardBody>
               <CRow className="mb-4">
-                <CCol sm={12} lg={8} className="mb-2 mb-lg-0">
+                <CCol sm={12} lg={6}>
                   <CInputGroup>
                     <CFormInput
                       placeholder="Cari berdasarkan nama, kontak, telepon atau alamat..."
                       value={search}
                       onChange={handleSearchChange}
-                      className="border-primary"
                     />
-                    <CButton
-                      type="button"
-                      color="primary"
-                      variant="outline"
-                      title="Cari"
-                    >
+                    <CButton color="primary" variant="outline">
                       <CIcon icon={cilSearch} />
                     </CButton>
                   </CInputGroup>
-                </CCol>
-                <CCol sm={12} lg={4} className="d-flex justify-content-lg-end">
-                  <CButtonGroup>
-                    <CButton
-                      color="success"
-                      onClick={() => navigate("/supplier/suppliers/add")}
-                      title="Tambah supplier baru"
-                    >
-                      <CIcon icon={cilPlus} className="me-1" />
-                      Tambah Supplier
-                    </CButton>
-                    <CButton
-                      color="secondary"
-                      onClick={fetchSuppliers}
-                      disabled={loading}
-                      title="Muat ulang data"
-                    >
-                      <CIcon icon={cilReload} />
-                    </CButton>
-                  </CButtonGroup>
                 </CCol>
               </CRow>
 
@@ -283,30 +271,31 @@ const Supplier = () => {
                                 </span>
                               </CTableDataCell>
                               <CTableDataCell className="text-center">
-                                <CButtonGroup size="sm">
+                                <div className="d-flex justify-content-center">
                                   <CButton
                                     color="info"
                                     variant="outline"
+                                    size="sm"
                                     onClick={() =>
                                       navigate(
                                         `/supplier/suppliers/edit/${supplier._id}`
                                       )
                                     }
-                                    title="Edit Supplier"
+                                    className="me-2"
                                   >
                                     <CIcon icon={cilPencil} />
                                   </CButton>
                                   <CButton
                                     color="danger"
                                     variant="outline"
+                                    size="sm"
                                     onClick={() =>
                                       handleDeleteSupplier(supplier._id)
                                     }
-                                    title="Hapus Supplier"
                                   >
                                     <CIcon icon={cilTrash} />
                                   </CButton>
-                                </CButtonGroup>
+                                </div>
                               </CTableDataCell>
                             </CTableRow>
                           ))

@@ -16,7 +16,6 @@ import {
   CSpinner,
   CInputGroup,
   CFormInput,
-  CButtonGroup,
   CPagination,
   CPaginationItem,
   CBreadcrumb,
@@ -140,9 +139,7 @@ const CategoriesList = () => {
         <CCol>
           <CBreadcrumb>
             <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
-            <CBreadcrumbItem href="/product-management">
-              Manajemen Barang
-            </CBreadcrumbItem>
+            <CBreadcrumbItem>Manajemen Barang</CBreadcrumbItem>
             <CBreadcrumbItem active>Kategori Produk</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
@@ -150,16 +147,33 @@ const CategoriesList = () => {
 
       <CRow>
         <CCol xs={12}>
-          <CCard className="mb-4 shadow-sm">
-            <CCardHeader className="bg-primary text-white">
-              <h5 className="mb-0">
-                <CIcon icon={cilTags} className="me-2" />
-                Kategori Produk
-              </h5>
+          <CCard className="mb-4">
+            <CCardHeader>
+              <div className="d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">Kategori Produk</h5>
+                <div>
+                  <CButton
+                    color="primary"
+                    onClick={() =>
+                      navigate("/product-management/categories/add")
+                    }
+                    className="me-1"
+                  >
+                    Tambah Kategori
+                  </CButton>
+                  <CButton
+                    color="secondary"
+                    onClick={fetchCategories}
+                    disabled={loading}
+                  >
+                    <CIcon icon={cilReload} />
+                  </CButton>
+                </div>
+              </div>
             </CCardHeader>
             <CCardBody>
               <CRow className="mb-4">
-                <CCol sm={12} lg={8} className="mb-2 mb-lg-0">
+                <CCol sm={12} lg={6}>
                   <CInputGroup>
                     <CFormInput
                       placeholder="Cari kategori..."
@@ -171,26 +185,6 @@ const CategoriesList = () => {
                     </CButton>
                   </CInputGroup>
                 </CCol>
-                <CCol sm={12} lg={4} className="d-flex justify-content-lg-end">
-                  <CButtonGroup>
-                    <CButton
-                      color="success"
-                      onClick={() =>
-                        navigate("/product-management/categories/add")
-                      }
-                    >
-                      <CIcon icon={cilPlus} className="me-1" />
-                      Tambah Kategori
-                    </CButton>
-                    <CButton
-                      color="secondary"
-                      onClick={fetchCategories}
-                      disabled={loading}
-                    >
-                      <CIcon icon={cilReload} />
-                    </CButton>
-                  </CButtonGroup>
-                </CCol>
               </CRow>
 
               {loading ? (
@@ -199,8 +193,8 @@ const CategoriesList = () => {
                 </div>
               ) : (
                 <>
-                  <CTable hover striped>
-                    <CTableHead>
+                  <CTable hover responsive>
+                    <CTableHead color="light">
                       <CTableRow>
                         <CTableHeaderCell width="5%">No</CTableHeaderCell>
                         <CTableHeaderCell>Nama Kategori</CTableHeaderCell>
@@ -220,20 +214,23 @@ const CategoriesList = () => {
                               {category.description || "-"}
                             </CTableDataCell>
                             <CTableDataCell>
-                              <CButtonGroup>
+                              <div className="d-flex">
                                 <CButton
                                   color="info"
+                                  variant="outline"
                                   size="sm"
                                   onClick={() =>
                                     navigate(
                                       `/product-management/categories/edit/${category._id}`
                                     )
                                   }
+                                  className="me-2"
                                 >
                                   <CIcon icon={cilPencil} />
                                 </CButton>
                                 <CButton
                                   color="danger"
+                                  variant="outline"
                                   size="sm"
                                   onClick={() =>
                                     handleDeleteCategory(category._id)
@@ -241,7 +238,7 @@ const CategoriesList = () => {
                                 >
                                   <CIcon icon={cilTrash} />
                                 </CButton>
-                              </CButtonGroup>
+                              </div>
                             </CTableDataCell>
                           </CTableRow>
                         ))

@@ -51,13 +51,13 @@ const EditSupplier = () => {
           address: response.data.address || "",
         });
       } catch (error) {
-        console.error("Error fetching supplier:", error);
+        console.error("Gagal memuat data supplier:", error);
         Swal.fire({
           icon: "error",
           title: "Error",
-          text: "Failed to load supplier data",
+          text: "Gagal memuat data supplier",
         }).then(() => {
-          navigate("/suppliers");
+          navigate("/supplier/suppliers");
         });
       } finally {
         setFetching(false);
@@ -89,17 +89,17 @@ const EditSupplier = () => {
 
       Swal.fire({
         icon: "success",
-        title: "Success!",
-        text: "Supplier updated successfully!",
+        title: "Berhasil!",
+        text: "Data supplier berhasil diperbarui!",
       }).then(() => {
-        navigate("/suppliers");
+        navigate("/supplier/suppliers");
       });
     } catch (error) {
-      console.error("Error updating supplier:", error);
+      console.error("Gagal memperbarui supplier:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Failed to update supplier",
+        text: "Gagal memperbarui data supplier",
       });
     } finally {
       setLoading(false);
@@ -122,8 +122,11 @@ const EditSupplier = () => {
       <CRow className="mb-3">
         <CCol>
           <CBreadcrumb>
-            <CBreadcrumbItem href="/dashboard">Home</CBreadcrumbItem>
-            <CBreadcrumbItem href="/suppliers">Suppliers</CBreadcrumbItem>
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem>Manajemen Barang</CBreadcrumbItem>
+            <CBreadcrumbItem href="/supplier/suppliers">
+              Data Supplier
+            </CBreadcrumbItem>
             <CBreadcrumbItem active>Edit Supplier</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
@@ -133,7 +136,7 @@ const EditSupplier = () => {
         <CCol xs={12}>
           <CCard className="mb-4 shadow-sm">
             <CCardHeader className="bg-primary text-white">
-              <h5 className="mb-0">Edit Supplier</h5>
+              <h5 className="mb-0">Edit Data Supplier</h5>
             </CCardHeader>
             <CCardBody>
               <CForm onSubmit={handleSubmit}>
@@ -141,7 +144,7 @@ const EditSupplier = () => {
                   <CCol md={12}>
                     <div className="mb-3">
                       <CFormLabel htmlFor="name">
-                        Supplier Name <span className="text-danger">*</span>
+                        Nama Supplier <span className="text-danger">*</span>
                       </CFormLabel>
                       <CFormInput
                         type="text"
@@ -149,7 +152,7 @@ const EditSupplier = () => {
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
-                        placeholder="Enter supplier name"
+                        placeholder="Masukkan nama supplier"
                         maxLength={50}
                         required
                       />
@@ -160,26 +163,26 @@ const EditSupplier = () => {
                 <CRow>
                   <CCol md={6}>
                     <div className="mb-3">
-                      <CFormLabel htmlFor="contact">Contact</CFormLabel>
+                      <CFormLabel htmlFor="contact">Kontak</CFormLabel>
                       <CFormInput
                         id="contact"
                         name="contact"
                         value={formData.contact}
                         onChange={handleInputChange}
-                        placeholder="Enter contact person"
+                        placeholder="Masukkan nama kontak"
                         maxLength={20}
                       />
                     </div>
                   </CCol>
                   <CCol md={6}>
                     <div className="mb-3">
-                      <CFormLabel htmlFor="phone">Phone</CFormLabel>
+                      <CFormLabel htmlFor="phone">Telepon</CFormLabel>
                       <CFormInput
                         id="phone"
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        placeholder="Enter phone number"
+                        placeholder="Masukkan nomor telepon"
                         maxLength={20}
                       />
                     </div>
@@ -189,14 +192,14 @@ const EditSupplier = () => {
                 <CRow>
                   <CCol md={12}>
                     <div className="mb-3">
-                      <CFormLabel htmlFor="address">Address</CFormLabel>
+                      <CFormLabel htmlFor="address">Alamat</CFormLabel>
                       <CFormTextarea
                         id="address"
                         name="address"
                         rows={3}
                         value={formData.address}
                         onChange={handleInputChange}
-                        placeholder="Enter supplier address"
+                        placeholder="Masukkan alamat supplier"
                         maxLength={100}
                       />
                     </div>
@@ -211,7 +214,7 @@ const EditSupplier = () => {
                       disabled={loading}
                     >
                       <CIcon icon={cilArrowLeft} className="me-1" />
-                      Back
+                      Kembali
                     </CButton>
                     <CButton
                       color="primary"
@@ -220,7 +223,7 @@ const EditSupplier = () => {
                     >
                       {loading && <CSpinner size="sm" className="me-2" />}
                       <CIcon icon={cilSave} className="me-1" />
-                      Update Supplier
+                      Simpan Perubahan
                     </CButton>
                   </CCol>
                 </CRow>

@@ -38,6 +38,7 @@ const User = () => {
   const [filterRole, setFilterRole] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [currentUserRole, setCurrentUserRole] = useState("");
   const navigate = useNavigate();
 
   // Available roles for filtering
@@ -48,6 +49,18 @@ const User = () => {
     setLoading(true);
     setError(null);
     try {
+      // First get current user's role
+      const currentUserResponse = await axios.get(
+        "http://localhost:5000/api/users/me",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        }
+      );
+      setCurrentUserRole(currentUserResponse.data.user.role);
+
+      // Then get all users
       const response = await axios.get("http://localhost:5000/api/users", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("userToken")}`,
@@ -57,14 +70,14 @@ const User = () => {
       if (response.data) {
         setUsers(response.data);
       } else {
-        throw new Error("No data received from server");
+        throw new Error("Tidak ada data yang diterima dari server");
       }
     } catch (err) {
-      console.error("Error fetching users:", err);
+      console.error("Gagal memuat data pengguna:", err);
       setError(
-        `Failed to load user data: ${
+        `Gagal memuat data pengguna: ${
           err.response?.data?.message || err.message
-        }. Please try again later.`
+        }. Silakan coba lagi nanti.`
       );
       setUsers([]);
     } finally {
@@ -102,28 +115,49 @@ const User = () => {
   const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
-  const handleEditUser = (id) => {
+  const handleEditUser = (id, userRole) => {
+    // Prevent editing pemilik users
+    if (userRole === "pemilik") {
+      Swal.fire({
+        title: "Akses Ditolak",
+        text: "Akun pemilik tidak dapat diedit",
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
     navigate(`/user-management/edit/${id}`);
   };
 
-  const handleDeleteUser = async (id, userName) => {
+  const handleDeleteUser = async (id, userName, userRole) => {
     try {
+      // Prevent deleting pemilik users
+      if (userRole === "pemilik") {
+        Swal.fire({
+          title: "Akses Ditolak",
+          text: "Akun pemilik tidak dapat dihapus",
+          icon: "error",
+          confirmButtonText: "OK",
+        });
+        return;
+      }
+
       const result = await Swal.fire({
-        title: "Are you sure?",
-        text: `You are about to delete "${userName}". This action cannot be undone!`,
+        title: "Apakah Anda yakin?",
+        text: `Anda akan menghapus pengguna "${userName}". Aksi ini tidak dapat dibatalkan!`,
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#d33",
         cancelButtonColor: "#3085d6",
-        confirmButtonText: "Yes, delete it!",
-        cancelButtonText: "Cancel",
+        confirmButtonText: "Ya, hapus!",
+        cancelButtonText: "Batal",
         reverseButtons: true,
       });
 
       if (result.isConfirmed) {
         Swal.fire({
-          title: "Deleting...",
-          text: "Please wait while we delete the user",
+          title: "Menghapus...",
+          text: "Harap tunggu sedang menghapus pengguna",
           allowOutsideClick: false,
           showConfirmButton: false,
           willOpen: () => {
@@ -138,8 +172,8 @@ const User = () => {
         });
 
         await Swal.fire({
-          title: "Deleted!",
-          text: "The user has been deleted successfully.",
+          title: "Terhapus!",
+          text: "Pengguna berhasil dihapus.",
           icon: "success",
           timer: 2000,
           showConfirmButton: false,
@@ -148,19 +182,19 @@ const User = () => {
         fetchUsers();
       }
     } catch (err) {
-      console.error("Error deleting user:", err);
+      console.error("Gagal menghapus pengguna:", err);
       await Swal.fire({
         title: "Error!",
-        text: `Failed to delete user: ${
+        text: `Gagal menghapus pengguna: ${
           err.response?.data?.message || err.message
-        }. Please try again.`,
+        }. Silakan coba lagi.`,
         icon: "error",
         confirmButtonText: "OK",
       });
       setError(
-        `Failed to delete user: ${
+        `Gagal menghapus pengguna: ${
           err.response?.data?.message || err.message
-        }. Please try again.`
+        }. Silakan coba lagi.`
       );
     }
   };
@@ -194,9 +228,9 @@ const User = () => {
       <CRow>
         <CCol>
           <CBreadcrumb className="mb-3">
-            <CBreadcrumbItem href="/dashboard">Home</CBreadcrumbItem>
-            <CBreadcrumbItem>User Management</CBreadcrumbItem>
-            <CBreadcrumbItem active>User List</CBreadcrumbItem>
+            <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+            <CBreadcrumbItem>Manajemen Pengguna</CBreadcrumbItem>
+            <CBreadcrumbItem active>Daftar Pengguna</CBreadcrumbItem>
           </CBreadcrumb>
         </CCol>
       </CRow>
@@ -205,14 +239,14 @@ const User = () => {
         <CCol xs={12}>
           <CCard className="mb-4">
             <CCardHeader>
-              <h5>User List</h5>
+              <h5>Daftar Pengguna</h5>
             </CCardHeader>
             <CCardBody>
               <CRow className="mb-3">
                 <CCol sm={12} md={4} className="mb-2 mb-md-0">
                   <CInputGroup>
                     <CFormInput
-                      placeholder="Search by name, or email..."
+                      placeholder="Cari berdasarkan nama atau email..."
                       value={search}
                       onChange={handleSearchChange}
                     />
@@ -223,10 +257,10 @@ const User = () => {
                 </CCol>
                 <CCol sm={12} md={2} className="mb-2 mb-md-0">
                   <CFormSelect value={filterRole} onChange={handleRoleChange}>
-                    <option value="">All Roles</option>
+                    <option value="">Semua Peran</option>
                     {roles.map((role) => (
                       <option key={role} value={role}>
-                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                        {role === "pemilik" ? "Pemilik" : "Karyawan"}
                       </option>
                     ))}
                   </CFormSelect>
@@ -261,11 +295,11 @@ const User = () => {
                     <CTableHead color="light">
                       <CTableRow>
                         <CTableHeaderCell scope="col">No</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Name</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Nama</CTableHeaderCell>
                         <CTableHeaderCell scope="col">Email</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Role</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Created</CTableHeaderCell>
-                        <CTableHeaderCell scope="col">Actions</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Peran</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Dibuat</CTableHeaderCell>
+                        <CTableHeaderCell scope="col">Aksi</CTableHeaderCell>
                       </CTableRow>
                     </CTableHead>
                     <CTableBody>
@@ -283,8 +317,9 @@ const User = () => {
                             </CTableDataCell>
                             <CTableDataCell>
                               <CBadge color={getRoleColor(user.role)}>
-                                {user.role?.charAt(0).toUpperCase() +
-                                  user.role?.slice(1) || "N/A"}
+                                {user.role === "pemilik"
+                                  ? "Pemilik"
+                                  : "Karyawan"}
                               </CBadge>
                             </CTableDataCell>
                             <CTableDataCell>
@@ -295,7 +330,10 @@ const User = () => {
                                 <CButton
                                   color="info"
                                   variant="outline"
-                                  onClick={() => handleEditUser(user._id)}
+                                  onClick={() =>
+                                    handleEditUser(user._id, user.role)
+                                  }
+                                  disabled={user.role === "pemilik"}
                                 >
                                   <CIcon icon={cilPencil} />
                                 </CButton>
@@ -305,9 +343,11 @@ const User = () => {
                                   onClick={() =>
                                     handleDeleteUser(
                                       user._id,
-                                      user.name || user.email
+                                      user.name || user.email,
+                                      user.role
                                     )
                                   }
+                                  disabled={user.role === "pemilik"}
                                 >
                                   <CIcon icon={cilTrash} />
                                 </CButton>
@@ -318,7 +358,7 @@ const User = () => {
                       ) : (
                         <CTableRow>
                           <CTableDataCell colSpan="8" className="text-center">
-                            No users found
+                            Tidak ada pengguna ditemukan
                           </CTableDataCell>
                         </CTableRow>
                       )}
@@ -331,7 +371,7 @@ const User = () => {
                         disabled={currentPage === 1}
                         onClick={() => setCurrentPage(currentPage - 1)}
                       >
-                        Previous
+                        Sebelumnya
                       </CPaginationItem>
 
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map(
@@ -350,16 +390,16 @@ const User = () => {
                         disabled={currentPage === totalPages}
                         onClick={() => setCurrentPage(currentPage + 1)}
                       >
-                        Next
+                        Selanjutnya
                       </CPaginationItem>
                     </CPagination>
                   )}
 
                   <div className="text-medium-emphasis small">
-                    Showing{" "}
-                    {filteredUsers.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
-                    {Math.min(indexOfLastItem, filteredUsers.length)} of{" "}
-                    {filteredUsers.length} entries
+                    Menampilkan{" "}
+                    {filteredUsers.length > 0 ? indexOfFirstItem + 1 : 0} sampai{" "}
+                    {Math.min(indexOfLastItem, filteredUsers.length)} dari{" "}
+                    {filteredUsers.length} entri
                   </div>
                 </>
               )}

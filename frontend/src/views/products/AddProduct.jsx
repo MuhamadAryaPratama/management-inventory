@@ -45,6 +45,20 @@ const AddProduct = () => {
   const [validated, setValidated] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Check if all required fields are filled and valid
+  const isFormValid = () => {
+    const requiredFields = [
+      "name",
+      "price",
+      "currentStock",
+      "category",
+      "supplier",
+    ];
+    const hasErrors = Object.values(errors).some((error) => error);
+
+    return requiredFields.every((field) => formData[field]) && !hasErrors;
+  };
+
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoadingData(true);
@@ -86,33 +100,42 @@ const AddProduct = () => {
       [name]: value,
     }));
 
-    if (errors[name]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: "",
-      }));
-    }
+    // Validate on change
+    validateField(name, value);
   };
 
-  const validateForm = () => {
-    const newErrors = {};
+  const validateField = (name, value) => {
+    let error = "";
 
-    if (!formData.name.trim()) newErrors.name = "Nama produk wajib diisi";
-    if (!formData.category) newErrors.category = "Kategori wajib dipilih";
-    if (!formData.supplier) newErrors.supplier = "Supplier wajib dipilih";
+    switch (name) {
+      case "name":
+        if (!value.trim()) error = "Nama produk wajib diisi";
+        break;
+      case "category":
+        if (!value) error = "Kategori wajib dipilih";
+        break;
+      case "supplier":
+        if (!value) error = "Supplier wajib dipilih";
+        break;
+      case "price":
+        if (!value || parseFloat(value) <= 0)
+          error = "Harga harus lebih besar dari 0";
+        break;
+      case "currentStock":
+        if (!value || parseInt(value) < 0) error = "Stok tidak boleh negatif";
+        break;
+      case "minStock":
+        if (value && parseInt(value) < 0)
+          error = "Stok minimum tidak boleh negatif";
+        break;
+      default:
+        break;
+    }
 
-    if (!formData.price || formData.price <= 0) {
-      newErrors.price = "Harga harus lebih besar dari 0";
-    }
-    if (!formData.currentStock || formData.currentStock < 0) {
-      newErrors.currentStock = "Stok tidak boleh negatif";
-    }
-    if (formData.minStock && formData.minStock < 0) {
-      newErrors.minStock = "Stok minimum tidak boleh negatif";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors((prev) => ({
+      ...prev,
+      [name]: error,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -121,7 +144,12 @@ const AddProduct = () => {
 
     setValidated(true);
 
-    if (!validateForm()) return;
+    // Validate all fields
+    Object.entries(formData).forEach(([name, value]) => {
+      validateField(name, value);
+    });
+
+    if (!isFormValid()) return;
 
     setLoading(true);
     setError(null);
@@ -198,7 +226,7 @@ const AddProduct = () => {
           <CBreadcrumb className="mb-3">
             <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
             <CBreadcrumbItem>Manajemen Produk</CBreadcrumbItem>
-            <CBreadcrumbItem href="/product-management">
+            <CBreadcrumbItem href="/product-management/items">
               Daftar Produk
             </CBreadcrumbItem>
             <CBreadcrumbItem active>Tambah Produk</CBreadcrumbItem>
@@ -381,7 +409,11 @@ const AddProduct = () => {
                           Reset
                         </CButton>
                       </div>
-                      <CButton color="primary" type="submit" disabled={loading}>
+                      <CButton
+                        color="primary"
+                        type="submit"
+                        disabled={!isFormValid() || loading}
+                      >
                         {loading ? (
                           <>
                             <CSpinner size="sm" className="me-1" />

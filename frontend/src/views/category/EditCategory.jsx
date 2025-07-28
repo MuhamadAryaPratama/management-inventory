@@ -141,7 +141,8 @@ const EditCategory = () => {
         <CCol>
           <CBreadcrumb>
             <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
-            <CBreadcrumbItem href="/categories">
+            <CBreadcrumbItem>Manajemen Barang</CBreadcrumbItem>
+            <CBreadcrumbItem href="/product-management/categories">
               Kategori Barang
             </CBreadcrumbItem>
             <CBreadcrumbItem active>Edit Kategori</CBreadcrumbItem>
@@ -154,10 +155,7 @@ const EditCategory = () => {
           <CCard className="mb-4 shadow-sm">
             <CCardHeader className="bg-primary text-white">
               <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">
-                  <CIcon icon={cilTags} className="me-2" />
-                  Edit Kategori
-                </h5>
+                <h5 className="mb-0">Edit Kategori</h5>
                 <CButton
                   color="light"
                   variant="outline"

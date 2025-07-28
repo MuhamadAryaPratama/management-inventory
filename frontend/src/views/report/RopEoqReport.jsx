@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   CCard,
   CCardBody,
@@ -28,6 +28,8 @@ import {
   CDropdownToggle,
   CDropdownMenu,
   CDropdownItem,
+  CBreadcrumb,
+  CBreadcrumbItem,
 } from "@coreui/react";
 import CIcon from "@coreui/icons-react";
 import {
@@ -43,6 +45,8 @@ import {
   cilStorage,
 } from "@coreui/icons";
 import axios from "axios";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const Report = () => {
   const [eoqData, setEoqData] = useState([]);
@@ -60,10 +64,10 @@ const Report = () => {
   const [itemsPerPage] = useState(10);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const pdfRef = useRef();
 
   useEffect(() => {
     fetchAllData();
-    // cleanupOrphanedData();
   }, []);
 
   useEffect(() => {
@@ -150,29 +154,6 @@ const Report = () => {
     }
   };
 
-  // const cleanupOrphanedData = async () => {
-  //   try {
-  //     const token = localStorage.getItem("userToken");
-  //     await axios.post(
-  //       "http://localhost:5000/api/eoq/cleanup",
-  //       {},
-  //       {
-  //         headers: { Authorization: `Bearer ${token}` },
-  //       }
-  //     );
-  //     await axios.post(
-  //       "http://localhost:5000/api/rop/cleanup",
-  //       {},
-  //       {
-  //         headers: { Authorization: `Bearer ${token}` },
-  //       }
-  //     );
-  //     console.log("Orphaned data cleanup completed");
-  //   } catch (error) {
-  //     console.error("Error cleaning up orphaned data:", error);
-  //   }
-  // };
-
   const getProductWithCategory = (productId) => {
     if (!productId) return null;
 
@@ -220,7 +201,6 @@ const Report = () => {
   const combineAndFilterData = () => {
     const combinedData = [];
 
-    // Create a map of product IDs to their ROP data for faster lookup
     const ropMap = new Map();
     ropData.forEach((rop) => {
       const productId = rop.product?._id || rop.product;
@@ -229,14 +209,11 @@ const Report = () => {
       }
     });
 
-    // Process EOQ data
     eoqData.forEach((eoq) => {
       const productId = eoq.product?._id || eoq.product;
       const product = getProductWithCategory(productId);
 
-      // Skip if product doesn't exist
       if (!product) {
-        // console.log(`Skipping EOQ for deleted product: ${productId}`);
         return;
       }
 
@@ -245,15 +222,12 @@ const Report = () => {
       const productName = product.name || "N/A";
       const categoryName = product.category?.name || "Tidak ada kategori";
 
-      // Calculate EOQ status
       const eoqStatus = getEoqStatus(eoq.eoq, eoq.orderFrequency);
 
-      // Calculate ROP status
       const ropStatus = ropItem
         ? getRopStatus(ropItem, currentStock)
         : { status: "no-data", label: "Tidak ada data", color: "secondary" };
 
-      // Determine overall status
       let overallStatus = "optimal";
       let overallColor = "success";
 
@@ -293,7 +267,6 @@ const Report = () => {
       });
     });
 
-    // Filter data
     let filtered = combinedData.filter((item) => {
       const search = searchTerm.toLowerCase();
       const matchesSearch =
@@ -311,7 +284,6 @@ const Report = () => {
       return matchesSearch;
     });
 
-    // Sort data
     if (sortConfig.key) {
       filtered.sort((a, b) => {
         let aValue = a[sortConfig.key];
@@ -427,387 +399,476 @@ const Report = () => {
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  const handleExportData = () => {
-    const csvData = [
-      [
-        "No",
-        "Produk",
-        "Kategori",
-        "Stock",
-        "EOQ",
-        "ROP",
-        "Status EOQ",
-        "Status ROP",
-        "Status Keseluruhan",
-      ],
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers = [
+      "No",
+      "Produk",
+      "Kategori",
+      "Stok Saat Ini",
+      "EOQ",
+      "ROP",
+      "Status EOQ",
+      "Status ROP",
+      "Status Keseluruhan",
+      "Frekuensi Order",
+      "Total Biaya",
+      "Biaya Pemesanan",
+      "Biaya Penyimpanan",
+      "Permintaan Tahunan",
+      "Lead Time",
+      "Permintaan Harian",
+      "Terakhir Dihitung EOQ",
+      "Terakhir Dihitung ROP",
+    ];
+
+    const csvContent = [
+      headers.join(","),
       ...filteredData.map((item, index) => [
         index + 1,
-        item.productName,
-        item.categoryName,
+        `"${item.productName.replace(/"/g, '""')}"`,
+        `"${item.categoryName.replace(/"/g, '""')}"`,
         item.currentStock,
         item.eoq || "-",
         item.rop || "-",
         item.eoqStatus.text,
         item.ropStatus.label,
         item.overallStatus,
+        item.orderFrequency,
+        formatCurrency(item.totalCost).replace(/[^\d,-]/g, ""),
+        formatCurrency(item.orderingCost).replace(/[^\d,-]/g, ""),
+        formatCurrency(item.holdingCost).replace(/[^\d,-]/g, ""),
+        item.annualDemand,
+        item.leadTime || "-",
+        item.dailyDemand || "-",
+        formatDate(item.eoqLastCalculated),
+        item.ropLastCalculated ? formatDate(item.ropLastCalculated) : "-",
       ]),
-    ];
+    ].join("\n");
 
-    const csvContent = csvData.map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `laporan-eoq-rop-${
-      new Date().toISOString().split("T")[0]
-    }.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute("href", url);
+    link.setAttribute("download", "laporan_eoq_rop.csv");
+    link.style.visibility = "hidden";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Download PDF
+  const downloadPDF = () => {
+    const input = pdfRef.current;
+    setCurrentPage(1); // Set to first page to capture all data
+
+    setTimeout(() => {
+      html2canvas(input, {
+        scale: 2,
+        scrollY: -window.scrollY,
+        useCORS: true,
+      }).then((canvas) => {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("p", "mm", "a4");
+        const imgWidth = 210;
+        const pageHeight = 295;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        pdf.save("laporan_eoq_rop.pdf");
+      });
+    }, 500);
   };
 
   return (
     <>
-      <CRow>
-        <CCol xs={12}>
-          <CCard className="mb-4">
-            <CCardHeader className="d-flex justify-content-between align-items-center">
-              <div>
-                <CIcon icon={cilDescription} className="me-2" />
-                <strong>Laporan EOQ & ROP</strong>
-              </div>
-              <div className="d-flex gap-2">
-                <CButton
-                  color="success"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportData}
-                >
-                  <CIcon icon={cilCloudDownload} className="me-1" />
-                  Export CSV
-                </CButton>
-                <CButton
-                  color="secondary"
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchAllData}
-                  disabled={loading}
-                >
-                  <CIcon icon={cilReload} className="me-1" />
-                  {loading ? "Memuat..." : "Refresh"}
-                </CButton>
-              </div>
-            </CCardHeader>
-            <CCardBody>
-              {error && (
-                <CAlert color="danger" dismissible onClose={() => setError("")}>
-                  {error}
-                </CAlert>
-              )}
-              {success && (
-                <CAlert
-                  color="success"
-                  dismissible
-                  onClose={() => setSuccess("")}
-                >
-                  {success}
-                </CAlert>
-              )}
+      <div ref={pdfRef}>
+        <CRow>
+          <CCol>
+            <CBreadcrumb className="mb-3">
+              <CBreadcrumbItem href="/dashboard">Beranda</CBreadcrumbItem>
+              <CBreadcrumbItem>Laporan</CBreadcrumbItem>
+              <CBreadcrumbItem active>Laporan EOQ & ROP</CBreadcrumbItem>
+            </CBreadcrumb>
+          </CCol>
+        </CRow>
 
-              {/* Statistics Cards */}
-              <CRow className="mb-4">
-                <CCol md={3}>
-                  <CCard className="text-center border-primary">
-                    <CCardBody>
-                      <div className="text-primary">
-                        <CIcon icon={cilChart} size="2xl" />
-                      </div>
-                      <h4 className="text-primary mt-2">{stats.total}</h4>
-                      <p className="text-muted mb-0">Total Produk</p>
-                    </CCardBody>
-                  </CCard>
-                </CCol>
-                <CCol md={3}>
-                  <CCard className="text-center border-danger">
-                    <CCardBody>
-                      <div className="text-danger">
-                        <CIcon icon={cilWarning} size="2xl" />
-                      </div>
-                      <h4 className="text-danger mt-2">{stats.critical}</h4>
-                      <p className="text-muted mb-0">Status Kritis</p>
-                    </CCardBody>
-                  </CCard>
-                </CCol>
-                <CCol md={3}>
-                  <CCard className="text-center border-warning">
-                    <CCardBody>
-                      <div className="text-warning">
-                        <CIcon icon={cilStorage} size="2xl" />
-                      </div>
-                      <h4 className="text-warning mt-2">{stats.warning}</h4>
-                      <p className="text-muted mb-0">Perlu Perhatian</p>
-                    </CCardBody>
-                  </CCard>
-                </CCol>
-                <CCol md={3}>
-                  <CCard className="text-center border-success">
-                    <CCardBody>
-                      <div className="text-success">
-                        <CIcon icon={cilCheckCircle} size="2xl" />
-                      </div>
-                      <h4 className="text-success mt-2">{stats.optimal}</h4>
-                      <p className="text-muted mb-0">Status Optimal</p>
-                    </CCardBody>
-                  </CCard>
-                </CCol>
-              </CRow>
-
-              <CRow className="mb-3">
-                <CCol md={6}>
-                  <CCard>
-                    <CCardBody>
-                      <h6>Total Biaya EOQ</h6>
-                      <h4 className="text-success">
-                        {formatCurrency(stats.totalEoqCost)}
-                      </h4>
-                    </CCardBody>
-                  </CCard>
-                </CCol>
-                <CCol md={6}>
-                  <CCard>
-                    <CCardBody>
-                      <h6>Rata-rata Nilai EOQ</h6>
-                      <h4 className="text-info">
-                        {formatNumber(stats.averageEoq)} unit
-                      </h4>
-                    </CCardBody>
-                  </CCard>
-                </CCol>
-              </CRow>
-
-              {/* Search and Filter */}
-              <CRow className="mb-3">
-                <CCol md={6}>
-                  <CInputGroup>
-                    <CFormInput
-                      placeholder="Cari berdasarkan nama produk atau kategori..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <CButton color="primary" variant="outline">
-                      <CIcon icon={cilSearch} />
-                    </CButton>
-                  </CInputGroup>
-                </CCol>
-                <CCol md={3}>
-                  <CDropdown>
-                    <CDropdownToggle color="outline-secondary">
-                      <CIcon icon={cilFilter} className="me-2" />
-                      Filter Status
-                    </CDropdownToggle>
-                    <CDropdownMenu>
-                      <CDropdownItem onClick={() => setReportFilter("all")}>
-                        Semua Status
-                      </CDropdownItem>
-                      <CDropdownItem
-                        onClick={() => setReportFilter("critical")}
-                      >
-                        Status Kritis
-                      </CDropdownItem>
-                      <CDropdownItem onClick={() => setReportFilter("warning")}>
-                        Perlu Perhatian
-                      </CDropdownItem>
-                      <CDropdownItem onClick={() => setReportFilter("optimal")}>
-                        Status Optimal
-                      </CDropdownItem>
-                    </CDropdownMenu>
-                  </CDropdown>
-                </CCol>
-                <CCol md={3} className="text-end">
-                  <small className="text-muted">
-                    Menampilkan {currentItems.length} dari {filteredData.length}{" "}
-                    data
-                  </small>
-                </CCol>
-              </CRow>
-
-              {loading ? (
-                <div className="text-center p-4">
-                  <CSpinner color="primary" />
-                  <p className="mt-2">Memuat laporan...</p>
+        <CRow>
+          <CCol xs={12}>
+            <CCard className="mb-4">
+              <CCardHeader className="d-flex justify-content-between align-items-center">
+                <div>
+                  <CIcon icon={cilDescription} className="me-2" />
+                  <strong>Laporan EOQ & ROP</strong>
                 </div>
-              ) : (
-                <>
-                  <CTable responsive striped hover>
-                    <CTableHead>
-                      <CTableRow>
-                        <CTableHeaderCell>No</CTableHeaderCell>
-                        <CTableHeaderCell
-                          style={{ cursor: "pointer" }}
-                          onClick={() => handleSort("productName")}
+                <div className="d-flex gap-2">
+                  <CButton
+                    color="success"
+                    variant="outline"
+                    size="sm"
+                    onClick={exportToCSV}
+                  >
+                    <CIcon icon={cilCloudDownload} className="me-1" />
+                    Export CSV
+                  </CButton>
+                  <CButton
+                    color="danger"
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadPDF}
+                  >
+                    <CIcon icon={cilCloudDownload} className="me-1" />
+                    Export PDF
+                  </CButton>
+                  <CButton
+                    color="secondary"
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchAllData}
+                    disabled={loading}
+                  >
+                    <CIcon icon={cilReload} className="me-1" />
+                    {loading ? "Memuat..." : "Refresh"}
+                  </CButton>
+                </div>
+              </CCardHeader>
+              <CCardBody>
+                {error && (
+                  <CAlert
+                    color="danger"
+                    dismissible
+                    onClose={() => setError("")}
+                  >
+                    {error}
+                  </CAlert>
+                )}
+                {success && (
+                  <CAlert
+                    color="success"
+                    dismissible
+                    onClose={() => setSuccess("")}
+                  >
+                    {success}
+                  </CAlert>
+                )}
+
+                {/* Statistics Cards */}
+                <CRow className="mb-4">
+                  <CCol md={3}>
+                    <CCard className="text-center border-primary">
+                      <CCardBody>
+                        <div className="text-primary">
+                          <CIcon icon={cilChart} size="2xl" />
+                        </div>
+                        <h4 className="text-primary mt-2">{stats.total}</h4>
+                        <p className="text-muted mb-0">Total Produk</p>
+                      </CCardBody>
+                    </CCard>
+                  </CCol>
+                  <CCol md={3}>
+                    <CCard className="text-center border-danger">
+                      <CCardBody>
+                        <div className="text-danger">
+                          <CIcon icon={cilWarning} size="2xl" />
+                        </div>
+                        <h4 className="text-danger mt-2">{stats.critical}</h4>
+                        <p className="text-muted mb-0">Status Kritis</p>
+                      </CCardBody>
+                    </CCard>
+                  </CCol>
+                  <CCol md={3}>
+                    <CCard className="text-center border-warning">
+                      <CCardBody>
+                        <div className="text-warning">
+                          <CIcon icon={cilStorage} size="2xl" />
+                        </div>
+                        <h4 className="text-warning mt-2">{stats.warning}</h4>
+                        <p className="text-muted mb-0">Perlu Perhatian</p>
+                      </CCardBody>
+                    </CCard>
+                  </CCol>
+                  <CCol md={3}>
+                    <CCard className="text-center border-success">
+                      <CCardBody>
+                        <div className="text-success">
+                          <CIcon icon={cilCheckCircle} size="2xl" />
+                        </div>
+                        <h4 className="text-success mt-2">{stats.optimal}</h4>
+                        <p className="text-muted mb-0">Status Optimal</p>
+                      </CCardBody>
+                    </CCard>
+                  </CCol>
+                </CRow>
+
+                <CRow className="mb-3">
+                  <CCol md={6}>
+                    <CCard>
+                      <CCardBody>
+                        <h6>Total Biaya EOQ</h6>
+                        <h4 className="text-success">
+                          {formatCurrency(stats.totalEoqCost)}
+                        </h4>
+                      </CCardBody>
+                    </CCard>
+                  </CCol>
+                  <CCol md={6}>
+                    <CCard>
+                      <CCardBody>
+                        <h6>Rata-rata Nilai EOQ</h6>
+                        <h4 className="text-info">
+                          {formatNumber(stats.averageEoq)} unit
+                        </h4>
+                      </CCardBody>
+                    </CCard>
+                  </CCol>
+                </CRow>
+
+                {/* Search and Filter */}
+                <CRow className="mb-3">
+                  <CCol md={6}>
+                    <CInputGroup>
+                      <CFormInput
+                        placeholder="Cari berdasarkan nama produk atau kategori..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                      <CButton color="primary" variant="outline">
+                        <CIcon icon={cilSearch} />
+                      </CButton>
+                    </CInputGroup>
+                  </CCol>
+                  <CCol md={3}>
+                    <CDropdown>
+                      <CDropdownToggle color="outline-secondary">
+                        <CIcon icon={cilFilter} className="me-2" />
+                        Filter Status
+                      </CDropdownToggle>
+                      <CDropdownMenu>
+                        <CDropdownItem onClick={() => setReportFilter("all")}>
+                          Semua Status
+                        </CDropdownItem>
+                        <CDropdownItem
+                          onClick={() => setReportFilter("critical")}
                         >
-                          Produk{" "}
-                          {sortConfig.key === "productName" &&
-                            (sortConfig.direction === "asc" ? "↑" : "↓")}
-                        </CTableHeaderCell>
-                        <CTableHeaderCell
-                          style={{ cursor: "pointer" }}
-                          onClick={() => handleSort("categoryName")}
+                          Status Kritis
+                        </CDropdownItem>
+                        <CDropdownItem
+                          onClick={() => setReportFilter("warning")}
                         >
-                          Kategori{" "}
-                          {sortConfig.key === "categoryName" &&
-                            (sortConfig.direction === "asc" ? "↑" : "↓")}
-                        </CTableHeaderCell>
-                        <CTableHeaderCell
-                          style={{ cursor: "pointer" }}
-                          onClick={() => handleSort("currentStock")}
+                          Perlu Perhatian
+                        </CDropdownItem>
+                        <CDropdownItem
+                          onClick={() => setReportFilter("optimal")}
                         >
-                          Stock{" "}
-                          {sortConfig.key === "currentStock" &&
-                            (sortConfig.direction === "asc" ? "↑" : "↓")}
-                        </CTableHeaderCell>
-                        <CTableHeaderCell
-                          style={{ cursor: "pointer" }}
-                          onClick={() => handleSort("eoq")}
-                        >
-                          EOQ{" "}
-                          {sortConfig.key === "eoq" &&
-                            (sortConfig.direction === "asc" ? "↑" : "↓")}
-                        </CTableHeaderCell>
-                        <CTableHeaderCell
-                          style={{ cursor: "pointer" }}
-                          onClick={() => handleSort("rop")}
-                        >
-                          ROP{" "}
-                          {sortConfig.key === "rop" &&
-                            (sortConfig.direction === "asc" ? "↑" : "↓")}
-                        </CTableHeaderCell>
-                        <CTableHeaderCell>Status EOQ</CTableHeaderCell>
-                        <CTableHeaderCell>Status ROP</CTableHeaderCell>
-                        <CTableHeaderCell>Status Keseluruhan</CTableHeaderCell>
-                        <CTableHeaderCell width="120">Aksi</CTableHeaderCell>
-                      </CTableRow>
-                    </CTableHead>
-                    <CTableBody>
-                      {currentItems.length > 0 ? (
-                        currentItems.map((item, index) => (
-                          <CTableRow key={`${item.id}-${index}`}>
-                            <CTableDataCell>
-                              {indexOfFirstItem + index + 1}
-                            </CTableDataCell>
-                            <CTableDataCell>
-                              <strong>{item.productName}</strong>
-                            </CTableDataCell>
-                            <CTableDataCell>
-                              <CBadge color="secondary" className="text-dark">
-                                {item.categoryName}
-                              </CBadge>
-                            </CTableDataCell>
-                            <CTableDataCell>
-                              <strong className="text-info">
-                                {item.currentStock} unit
-                              </strong>
-                            </CTableDataCell>
-                            <CTableDataCell>
-                              <strong className="text-primary">
-                                {formatNumber(item.eoq)} unit
-                              </strong>
-                            </CTableDataCell>
-                            <CTableDataCell>
-                              <strong className="text-warning">
-                                {item.rop ? `${Math.ceil(item.rop)} unit` : "-"}
-                              </strong>
-                            </CTableDataCell>
-                            <CTableDataCell>
-                              <CBadge color={item.eoqStatus.color}>
-                                {item.eoqStatus.text}
-                              </CBadge>
-                            </CTableDataCell>
-                            <CTableDataCell>
-                              <CBadge color={item.ropStatus.color}>
-                                {item.ropStatus.label}
-                              </CBadge>
-                            </CTableDataCell>
-                            <CTableDataCell>
-                              <CBadge
-                                color={item.overallColor}
-                                className="fw-bold"
-                              >
-                                {item.overallStatus.toUpperCase()}
-                              </CBadge>
-                            </CTableDataCell>
-                            <CTableDataCell>
-                              <CButton
-                                color="info"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedItem(item);
-                                  setShowDetailModal(true);
-                                }}
-                              >
-                                <CIcon icon={cilInfo} className="me-1" />
-                              </CButton>
+                          Status Optimal
+                        </CDropdownItem>
+                      </CDropdownMenu>
+                    </CDropdown>
+                  </CCol>
+                  <CCol md={3} className="text-end">
+                    <small className="text-muted">
+                      Menampilkan {currentItems.length} dari{" "}
+                      {filteredData.length} data
+                    </small>
+                  </CCol>
+                </CRow>
+
+                {loading ? (
+                  <div className="text-center p-4">
+                    <CSpinner color="primary" />
+                    <p className="mt-2">Memuat laporan...</p>
+                  </div>
+                ) : (
+                  <>
+                    <CTable responsive striped hover>
+                      <CTableHead>
+                        <CTableRow>
+                          <CTableHeaderCell>No</CTableHeaderCell>
+                          <CTableHeaderCell
+                            style={{ cursor: "pointer" }}
+                            onClick={() => handleSort("productName")}
+                          >
+                            Produk{" "}
+                            {sortConfig.key === "productName" &&
+                              (sortConfig.direction === "asc" ? "↑" : "↓")}
+                          </CTableHeaderCell>
+                          <CTableHeaderCell
+                            style={{ cursor: "pointer" }}
+                            onClick={() => handleSort("categoryName")}
+                          >
+                            Kategori{" "}
+                            {sortConfig.key === "categoryName" &&
+                              (sortConfig.direction === "asc" ? "↑" : "↓")}
+                          </CTableHeaderCell>
+                          <CTableHeaderCell
+                            style={{ cursor: "pointer" }}
+                            onClick={() => handleSort("currentStock")}
+                          >
+                            Stock{" "}
+                            {sortConfig.key === "currentStock" &&
+                              (sortConfig.direction === "asc" ? "↑" : "↓")}
+                          </CTableHeaderCell>
+                          <CTableHeaderCell
+                            style={{ cursor: "pointer" }}
+                            onClick={() => handleSort("eoq")}
+                          >
+                            EOQ{" "}
+                            {sortConfig.key === "eoq" &&
+                              (sortConfig.direction === "asc" ? "↑" : "↓")}
+                          </CTableHeaderCell>
+                          <CTableHeaderCell
+                            style={{ cursor: "pointer" }}
+                            onClick={() => handleSort("rop")}
+                          >
+                            ROP{" "}
+                            {sortConfig.key === "rop" &&
+                              (sortConfig.direction === "asc" ? "↑" : "↓")}
+                          </CTableHeaderCell>
+                          <CTableHeaderCell>Status EOQ</CTableHeaderCell>
+                          <CTableHeaderCell>Status ROP</CTableHeaderCell>
+                          <CTableHeaderCell>
+                            Status Keseluruhan
+                          </CTableHeaderCell>
+                          <CTableHeaderCell width="120">Aksi</CTableHeaderCell>
+                        </CTableRow>
+                      </CTableHead>
+                      <CTableBody>
+                        {currentItems.length > 0 ? (
+                          currentItems.map((item, index) => (
+                            <CTableRow key={`${item.id}-${index}`}>
+                              <CTableDataCell>
+                                {indexOfFirstItem + index + 1}
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <strong>{item.productName}</strong>
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <CBadge color="secondary" className="text-dark">
+                                  {item.categoryName}
+                                </CBadge>
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <strong className="text-info">
+                                  {item.currentStock} unit
+                                </strong>
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <strong className="text-primary">
+                                  {formatNumber(item.eoq)} unit
+                                </strong>
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <strong className="text-warning">
+                                  {item.rop
+                                    ? `${Math.ceil(item.rop)} unit`
+                                    : "-"}
+                                </strong>
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <CBadge color={item.eoqStatus.color}>
+                                  {item.eoqStatus.text}
+                                </CBadge>
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <CBadge color={item.ropStatus.color}>
+                                  {item.ropStatus.label}
+                                </CBadge>
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <CBadge
+                                  color={item.overallColor}
+                                  className="fw-bold"
+                                >
+                                  {item.overallStatus.toUpperCase()}
+                                </CBadge>
+                              </CTableDataCell>
+                              <CTableDataCell>
+                                <CButton
+                                  color="info"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedItem(item);
+                                    setShowDetailModal(true);
+                                  }}
+                                >
+                                  <CIcon icon={cilInfo} className="me-1" />
+                                </CButton>
+                              </CTableDataCell>
+                            </CTableRow>
+                          ))
+                        ) : (
+                          <CTableRow>
+                            <CTableDataCell
+                              colSpan="10"
+                              className="text-center py-4"
+                            >
+                              <div className="text-muted">
+                                <CIcon
+                                  icon={cilDescription}
+                                  size="3xl"
+                                  className="mb-3"
+                                />
+                                <p>Tidak ada data untuk ditampilkan</p>
+                              </div>
                             </CTableDataCell>
                           </CTableRow>
-                        ))
-                      ) : (
-                        <CTableRow>
-                          <CTableDataCell
-                            colSpan="10"
-                            className="text-center py-4"
-                          >
-                            <div className="text-muted">
-                              <CIcon
-                                icon={cilDescription}
-                                size="3xl"
-                                className="mb-3"
-                              />
-                              <p>Tidak ada data untuk ditampilkan</p>
-                            </div>
-                          </CTableDataCell>
-                        </CTableRow>
-                      )}
-                    </CTableBody>
-                  </CTable>
+                        )}
+                      </CTableBody>
+                    </CTable>
 
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <CRow className="mt-3">
-                      <CCol className="d-flex justify-content-center">
-                        <CPagination>
-                          <CPaginationItem
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(currentPage - 1)}
-                          >
-                            Previous
-                          </CPaginationItem>
-
-                          {[...Array(totalPages)].map((_, index) => (
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <CRow className="mt-3">
+                        <CCol className="d-flex justify-content-center">
+                          <CPagination>
                             <CPaginationItem
-                              key={index + 1}
-                              active={currentPage === index + 1}
-                              onClick={() => setCurrentPage(index + 1)}
+                              disabled={currentPage === 1}
+                              onClick={() => setCurrentPage(currentPage - 1)}
                             >
-                              {index + 1}
+                              Previous
                             </CPaginationItem>
-                          ))}
 
-                          <CPaginationItem
-                            disabled={currentPage === totalPages}
-                            onClick={() => setCurrentPage(currentPage + 1)}
-                          >
-                            Next
-                          </CPaginationItem>
-                        </CPagination>
-                      </CCol>
-                    </CRow>
-                  )}
-                </>
-              )}
-            </CCardBody>
-          </CCard>
-        </CCol>
-      </CRow>
+                            {[...Array(totalPages)].map((_, index) => (
+                              <CPaginationItem
+                                key={index + 1}
+                                active={currentPage === index + 1}
+                                onClick={() => setCurrentPage(index + 1)}
+                              >
+                                {index + 1}
+                              </CPaginationItem>
+                            ))}
+
+                            <CPaginationItem
+                              disabled={currentPage === totalPages}
+                              onClick={() => setCurrentPage(currentPage + 1)}
+                            >
+                              Next
+                            </CPaginationItem>
+                          </CPagination>
+                        </CCol>
+                      </CRow>
+                    )}
+                  </>
+                )}
+              </CCardBody>
+            </CCard>
+          </CCol>
+        </CRow>
+      </div>
 
       {/* Detail Modal */}
       <CModal
